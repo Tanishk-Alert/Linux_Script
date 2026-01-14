@@ -4,11 +4,11 @@ set -e
 ################################
 # INPUT
 ################################
-ARTIFACTS="$1"
+# ARTIFACTS="$1"
 
-[ -z "$ARTIFACTS" ] && echo "❌ ARTIFACTS argument missing" && exit 1
+# [ -z "$ARTIFACTS" ] && echo "❌ ARTIFACTS argument missing" && exit 1
 
-IFS=',' read -ra ITEMS <<< "$ARTIFACTS"
+# IFS=',' read -ra ITEMS <<< "$ARTIFACTS"
 
 ################################
 # LOAD ENV
@@ -18,6 +18,17 @@ ENV_FILE="/opt/AlertEnterprise/configs/.env"
 [ ! -f "$ENV_FILE" ] && echo "❌ ENV file missing: $ENV_FILE" && exit 1
 
 source "$ENV_FILE"
+
+ARTIFACTS=()
+
+if [ "$APPLICATION" = "true" ]; then
+    ARTIFACTS+=("application")
+fi
+
+if [ "$AGENT" = "true" ]; then
+    ARTIFACTS+=("agent")
+fi
+
 
 [ -z "$SECRETS" ] && echo "❌ SECRETS is missing!" && exit 1
 
