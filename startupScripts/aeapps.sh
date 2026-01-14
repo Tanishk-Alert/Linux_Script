@@ -1,5 +1,17 @@
 #!/bin/bash
-source /opt/AlertEnterprise/.env
+export PATH=$PATH:/usr/local/bin:/usr/bin:/bin
+ACTION=$1
+APP_TYPE=$(echo "$2" | tr '[:upper:]' '[:lower:]')
+source /opt/AlertEnterprise/configs/.env
+
+if [ "$APP_TYPE" = "api" ]; then
+    httPort=9000
+    confFile=conf/application.conf
+elif [ "$APP_TYPE" = "job" ]; then
+    httPort=9090
+    confFile=conf/jobserver.conf
+fi
+
 
 # Exit if SECRETS is empty or unset
 [ -z "$SECRETS" ] && echo "SECRETS is missing!" && exit 1
@@ -22,7 +34,7 @@ export KEYSTORE_PASS=${keystorePass}
 
 
 #/=========changeable start ========
-API_PATH="/opt/AlertEnterprise/apps/alert-server-1.0"
+API_PATH="/opt/AlertEnterprise/apps/alert-api-server-1.0"
 JOB_PATH="/opt/AlertEnterprise/apps/alert-job-server-1.0"
 
 API_BIND_ADDRESS="0.0.0.0"
@@ -34,7 +46,7 @@ heap_file_api="/tmp/heapdump_api_${host}_${ts}.hprof"
 API_OOM_COMMAND="aws s3 mv ${heap_file_api} s3://${S3_HEAPDUMP_BUCKET}/api/ && kill -9 %p"
 
 API_EXTRA_PARAMS=(
-  -XX:MaxRAMPercentage=40.0
+  -XX:MaxRAMPercentage=35.0
   -XX:+UseG1GC
   -XX:InitiatingHeapOccupancyPercent=10
   -XX:+HeapDumpOnOutOfMemoryError
@@ -49,7 +61,7 @@ heap_file_job="/tmp/heapdump_job_${host}_${ts}.hprof"
 JOB_OOM_COMMAND="aws s3 mv ${heap_file_job} s3://${S3_HEAPDUMP_BUCKET}/job/ && kill -9 %p"
 
 JOB_EXTRA_PARAMS=(
-  -XX:MaxRAMPercentage=40.0
+  -XX:MaxRAMPercentage=35.0
   -XX:+UseG1GC
   -XX:InitiatingHeapOccupancyPercent=10
   -XX:+HeapDumpOnOutOfMemoryError
