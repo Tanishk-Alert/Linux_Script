@@ -1,16 +1,11 @@
 #!/bin/bash
 export PATH=$PATH:/usr/local/bin:/usr/bin:/bin
 ACTION=$1
-APP_TYPE=$(echo "$2" | tr '[:upper:]' '[:lower:]')
+# APP_TYPE=$(echo "$2" | tr '[:upper:]' '[:lower:]')
 source /opt/AlertEnterprise/configs/.env
 
-if [ "$APP_TYPE" = "api" ]; then
-    httPort=9000
-    confFile=conf/application.conf
-elif [ "$APP_TYPE" = "job" ]; then
-    httPort=9090
-    confFile=conf/jobserver.conf
-fi
+
+echo "apptype : $APP_TYPE"
 
 
 # Exit if SECRETS is empty or unset
@@ -21,17 +16,12 @@ while read -r item; do
     eval "$(echo "$item" | jq -r 'to_entries[] | "export \(.key)=\(.value)"')"
 done < <(echo "$SECRETS" | jq -c '.[]')
 
-#Keystore value added in enviroment.conf  for branch 10
-#PLAY_HTTP_SECRET_KEY_VALUE=$(echo "$secret" | jq -r '.keystore[0].PLAY_HTTP_SECRET_KEY') && export KEYSTORE_SECRET_KEY="$PLAY_HTTP_SECRET_KEY_VALUE"
-
 
 ########Finish#######################
-keystorePass=$(echo "$secret" | jq -r '.extra.keystorePass')
+# keystorePass=$(echo "$SECRETS" | jq -r '.keystorePass')
 [ -z "$keystorePass" ] && echo "Missing keystorePass!" && exit 1
 
 export KEYSTORE_PASS=${keystorePass}
-
-
 
 #/=========changeable start ========
 API_PATH="/opt/AlertEnterprise/apps/alert-api-server-1.0"
@@ -42,11 +32,11 @@ API_PORT=9000
 
 host=$(hostname)
 ts=$(date +%Y%m%d_%H%M%S)
-heap_file_api="/tmp/heapdump_api_${host}_${ts}.hprof"
+heap_file_api="/tmp/heapdump_api__${host}_${ts}.hprof"
 API_OOM_COMMAND="aws s3 mv ${heap_file_api} s3://${S3_HEAPDUMP_BUCKET}/api/ && kill -9 %p"
 
 API_EXTRA_PARAMS=(
-  -XX:MaxRAMPercentage=35.0
+  -XX:MaxRAMPercentage=80.0
   -XX:+UseG1GC
   -XX:InitiatingHeapOccupancyPercent=10
   -XX:+HeapDumpOnOutOfMemoryError
@@ -57,11 +47,11 @@ API_EXTRA_PARAMS=(
 JOB_BIND_ADDRESS="0.0.0.0"
 JOB_PORT=9090
 
-heap_file_job="/tmp/heapdump_job_${host}_${ts}.hprof"
+heap_file_job="/tmp/heapdump_job__${host}_${ts}.hprof"
 JOB_OOM_COMMAND="aws s3 mv ${heap_file_job} s3://${S3_HEAPDUMP_BUCKET}/job/ && kill -9 %p"
 
 JOB_EXTRA_PARAMS=(
-  -XX:MaxRAMPercentage=35.0
+  -XX:MaxRAMPercentage=80.0
   -XX:+UseG1GC
   -XX:InitiatingHeapOccupancyPercent=10
   -XX:+HeapDumpOnOutOfMemoryError
@@ -73,7 +63,7 @@ JOB_EXTRA_PARAMS=(
 #APP_TYPE="API"   # When this script only for a API
 #APP_TYPE="JOB"   # When this script only for a JOB
 
-VALIDATE=false
+VALIDATE=true
 LOGS_DIR="logs"
 LOG_ACTION="backup" # Set this to "backup", "del", "delete", or leave it empty
 
@@ -198,16 +188,8 @@ start_application() {
   check_pid "$RUNNING_PID_FILE"
   handle_logs $LOG_ACTION
   echo "Running command:"
-  echo java -cp "./lib/*" "${EXTRA_PARMS[@]}" \
-    -Dconfig.file=conf/${conf_file} \
-    -Dhttp.port=${APP_PORT} \
-    -Dhttp.address=${APP_ADDRESS} \
-    -Dlogback.debug=true \
-    -Dorg.owasp.esapi.resources=conf \
-    -Dlog4j.configurationFile=conf/log4j2.xml \
-    play.core.server.ProdServerStart
 
-  nohup java -cp "./lib/*" "${EXTRA_PARMS[@]}" \
+  exec nohup java -cp "./lib/*" "${EXTRA_PARMS[@]}" \
     -Dconfig.file=conf/${conf_file} \
     -Dhttp.port=${APP_PORT} \
     -Dhttp.address=${APP_ADDRESS} \
@@ -215,7 +197,6 @@ start_application() {
     -Dorg.owasp.esapi.resources=conf \
     -Dlog4j.configurationFile=conf/log4j2.xml \
     play.core.server.ProdServerStart >>"${APPS_PATH}/logs/consoleLogs" 2>&1 &
-  #nohup java -cp "./lib/*" "${EXTRA_PARMS[@]}" -Dconfig.file=conf/${conf_file} -Dhttp.port=${APP_PORT} -Dhttp.address=${APP_ADDRESS} -Dlogback.debug=true -Dorg.owasp.esapi.resources=conf -Dlog4j.configurationFile=conf/log4j2.xml play.core.server.ProdServerStart >>"${APPS_PATH}/logs/consoleLogs" 2>&1 &
 
   PID=$!
   echo "Background process started with PID: $PID"
@@ -269,6 +250,8 @@ validate_service() {
 }
 
 shopt -s nocasematch
+
+echo "APP_TYPE is jjjjj : $APP_TYPE"
 if [[ "$APP_TYPE" == "API" ]]; then
   check_paths "API"
   app_conf="application.conf"
