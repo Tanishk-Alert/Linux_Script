@@ -66,6 +66,32 @@ create_dirs() {
     done
 }
 
+stop_services() {
+    echo "🛑 Stopping services..."
+
+    ############################
+    # APPLICATION
+    ############################
+    if [[ " ${ARTIFACTS[*]} " == *" application "* ]]; then
+        echo "➡️ Stopping API and JOB services"
+
+        aeapps stop api
+        aeapps stop job
+    fi
+
+    ############################
+    # AGENT
+    ############################
+    if [[ " ${ARTIFACTS[*]} " == *" agent "* ]]; then
+        echo "➡️ Stopping AGENT service"
+
+        aeagent stop
+    fi
+
+    echo "✅ Service stop completed"
+}
+
+
 backup() {
     echo "📦 Starting backup process..."
 
@@ -483,6 +509,7 @@ flyway_run() {
 ################################
 main() {
     create_dirs
+    stop_services
     backup
     extract_zip
     copy_env_configs

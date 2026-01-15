@@ -26,7 +26,7 @@ done < <(echo "$SECRETS" | jq -c '.[]')
 
 
 ########Finish#######################
-keystorePass=$(echo "$secret" | jq -r '.extra.keystorePass')
+# keystorePass=$(echo "$SECRETS" | jq -r '.keystorePass')
 [ -z "$keystorePass" ] && echo "Missing keystorePass!" && exit 1
 
 export KEYSTORE_PASS=${keystorePass}
