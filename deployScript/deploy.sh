@@ -132,6 +132,51 @@ fi
 
 }
 
+download_build() {
+    echo "📥 Downloading build artifacts..."
+
+    mkdir -p builds
+
+    ############################
+    # APPLICATION
+    ############################
+    if [[ " ${ARTIFACTS[*]} " == *" application "* ]]; then
+        echo "➡️ Downloading APPLICATION artifacts"
+
+        for a in api job ui DB; do
+            SRC="${S3_SRC_PATH}/${gitBranch}/${buildVersion}/${a}.zip"
+
+            echo "   ⬇️ $a.zip"
+            if aws s3 cp "$SRC" builds/; then
+                echo "   ✔ Downloaded $a.zip"
+            else
+                echo "   ⚠️ $a.zip not found, skipping"
+            fi
+        done
+    fi
+
+    ############################
+    # AGENT
+    ############################
+    if [[ " ${ARTIFACTS[*]} " == *" agent "* ]]; then
+        echo "➡️ Downloading AGENT artifacts"
+
+        for a in agentserver agentDB; do
+            SRC="${S3_SRC_PATH}/${gitBranch}/${buildVersion}/${a}.zip"
+
+            echo "   ⬇️ $a.zip"
+            if aws s3 cp "$SRC" builds/; then
+                echo "   ✔ Downloaded $a.zip"
+            else
+                echo "   ⚠️ $a.zip not found, skipping"
+            fi
+        done
+    fi
+
+    echo "✅ Build download completed"
+}
+
+
 
 extract_zip() {
     echo "📦 Extracting artifacts..."
@@ -510,6 +555,7 @@ flyway_run() {
 main() {
     create_dirs
     stop_services
+    download_build
     backup
     extract_zip
     copy_env_configs
