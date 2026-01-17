@@ -610,7 +610,7 @@ flyway_run() {
         run_flyway \
             "application" \
             "filesystem:$INIT_APPS_PATH/db/migration/default/postgre,filesystem:$INIT_APPS_PATH/db/migration/default/postgreDML" \
-            "$LOGS_PATH/flyway/flyway_application.log"
+            "$LOGS_PATH/flyway/flyway_application.log" \
             "$dbSchema_api"
     fi
 
@@ -619,7 +619,7 @@ flyway_run() {
         run_flyway \
             "agent" \
             "filesystem:$INIT_APPS_PATH/agentdb/migration/default/postgre,filesystem:$INIT_APPS_PATH/agentdb/migration/default/postgreDML" \
-            "$LOGS_PATH/flyway/flyway_agent.log"
+            "$LOGS_PATH/flyway/flyway_agent.log" \
             "$dbSchema_agent"
     fi
 
