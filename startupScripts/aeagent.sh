@@ -1,11 +1,7 @@
 #!/bin/bash
 export PATH=$PATH:/usr/local/bin:/usr/bin:/bin
 ACTION=$1
-# APP_TYPE=$(echo "$2" | tr '[:upper:]' '[:lower:]')
 source /opt/AlertEnterprise/configs/.env
-
-
-echo "apptype : $APP_TYPE"
 
 
 # Exit if SECRETS is empty or unset
@@ -24,11 +20,11 @@ done < <(echo "$SECRETS" | jq -c '.[]')
 export KEYSTORE_PASS=${keystorePass}
 
 #/=========changeable start ========
-API_PATH="/opt/AlertEnterprise/apps/alert-api-server-1.0"
-JOB_PATH="/opt/AlertEnterprise/apps/alert-job-server-1.0"
+API_PATH="/opt/AlertEnterprise/apps/alert-agent-1.0"
+# JOB_PATH="/opt/AlertEnterprise/apps/alert-job-server-1.0"
 
 API_BIND_ADDRESS="0.0.0.0"
-API_PORT=9000
+API_PORT=9095
 
 host=$(hostname)
 ts=$(date +%Y%m%d_%H%M%S)
@@ -36,7 +32,7 @@ heap_file_api="/tmp/heapdump_api__${host}_${ts}.hprof"
 API_OOM_COMMAND="aws s3 mv ${heap_file_api} s3://${S3_HEAPDUMP_BUCKET}/api/ && kill -9 %p"
 
 API_EXTRA_PARAMS=(
-  -XX:MaxRAMPercentage=80.0
+  -XX:MaxRAMPercentage=35.0
   -XX:+UseG1GC
   -XX:InitiatingHeapOccupancyPercent=10
   -XX:+HeapDumpOnOutOfMemoryError
@@ -51,7 +47,7 @@ heap_file_job="/tmp/heapdump_job__${host}_${ts}.hprof"
 JOB_OOM_COMMAND="aws s3 mv ${heap_file_job} s3://${S3_HEAPDUMP_BUCKET}/job/ && kill -9 %p"
 
 JOB_EXTRA_PARAMS=(
-  -XX:MaxRAMPercentage=80.0
+  -XX:MaxRAMPercentage=35.0
   -XX:+UseG1GC
   -XX:InitiatingHeapOccupancyPercent=10
   -XX:+HeapDumpOnOutOfMemoryError
@@ -60,7 +56,7 @@ JOB_EXTRA_PARAMS=(
 )
 
 
-#APP_TYPE="API"   # When this script only for a API
+APP_TYPE="AGENT"   # When this script only for a API
 #APP_TYPE="JOB"   # When this script only for a JOB
 
 VALIDATE=true
@@ -251,7 +247,7 @@ validate_service() {
 
 shopt -s nocasematch
 
-echo "APP_TYPE is jjjjj : $APP_TYPE"
+echo "APP_TYPE is : $APP_TYPE"
 if [[ "$APP_TYPE" == "API" ]]; then
   check_paths "API"
   app_conf="application.conf"

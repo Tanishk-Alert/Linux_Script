@@ -1,0 +1,123 @@
+pipeline {
+    agent {
+        label 'linux_deploy_us || linux_deploy_india'
+    }
+
+    /* ================= PARAMETERS ================= */
+    parameters {
+        string(name: 'gitBranch', defaultValue: '', description: 'Git branch')
+        string(name: 'buildVersion', defaultValue: '', description: 'Build version')
+        string(name: 'IP', defaultValue: '', description: 'Linux VM IP')
+        string(
+            name: 'artifacts',
+            defaultValue: 'application',
+            description: 'Artifacts to deploy (comma-separated: application,agent)'
+        )
+    }
+
+    /* ================= ENVIRONMENT ================= */
+    environment {
+        AWS_CREDS   = credentials('AWS')       // AWS credential ID = AWS
+        GIT_TOKEN   = credentials('GIT_TOKEN') // Git token credential ID
+        S3_SRC_PATH = 's3://aehscbuilds'
+    }
+
+    stages {
+
+        /* ================= VALIDATION ================= */
+        stage('Validation') {
+            steps {
+                script {
+                    if (!params.gitBranch?.trim())    error 'gitBranch is required'
+                    if (!params.buildVersion?.trim()) error 'buildVersion is required'
+                    if (!params.IP?.trim())           error 'IP is required'
+                    if (!params.artifacts?.trim())    error 'artifacts is required'
+                }
+            }
+        }
+
+        /* ================= INIT ================= */
+        stage('Init') {
+            steps {
+                script {
+                    env.AWS_ACCESS_KEY_ID     = env.AWS_CREDS_USR
+                    env.AWS_SECRET_ACCESS_KEY = env.AWS_CREDS_PSW
+                }
+            }
+        }
+
+        /* ================= INFO ================= */
+        stage('All Info') {
+            steps {
+                sh '''
+                echo "=============================="
+                echo "Git Branch    : $gitBranch"
+                echo "Build Version : $buildVersion"
+                echo "VM IP         : $IP"
+                echo "Artifacts     : $artifacts"
+                echo "=============================="
+                '''
+            }
+        }
+
+        /* ================= DEPLOY ================= */
+        stage('Deploy on VM') {
+            steps {
+                withCredentials([
+                    sshUserPrivateKey(
+                        credentialsId: 'local_linux_vms',
+                        keyFileVariable: 'SSH_KEY',
+                        usernameVariable: 'SSH_USER'
+                    )
+                ]) {
+                    sh """
+ssh -i "${SSH_KEY}" -o StrictHostKeyChecking=no ${SSH_USER}@${IP} << 'EOF'
+sudo -E bash << 'INNER_EOF'
+set -e
+
+# ---------------- SECURITY HARDENING ----------------
+unset HISTFILE
+export HISTSIZE=0
+export HISTFILESIZE=0
+set +o history
+
+# ---------------- TEMP AWS CREDENTIALS ----------------
+export AWS_SHARED_CREDENTIALS_FILE=\$(mktemp)
+
+aws configure set aws_access_key_id     "${AWS_ACCESS_KEY_ID}"
+aws configure set aws_secret_access_key "${AWS_SECRET_ACCESS_KEY}"
+# aws configure set region ap-south-1
+
+# ---------------- DEPLOY ----------------
+rm -rf /tmp/scripts
+git clone https://${GIT_TOKEN}@github.com/Tanishk-Alert/Linux_Script.git /tmp/scripts
+
+bash /tmp/scripts/deployScript/deploy.sh \
+    "${S3_SRC_PATH}" \
+    "${gitBranch}" \
+    "${buildVersion}"
+
+# ---------------- CLEANUP ----------------
+rm -f "\$AWS_SHARED_CREDENTIALS_FILE"
+unset AWS_SHARED_CREDENTIALS_FILE
+unset AWS_ACCESS_KEY_ID
+unset AWS_SECRET_ACCESS_KEY
+unset GIT_TOKEN
+
+INNER_EOF
+EOF
+"""
+                }
+            }
+        }
+    }
+
+    post {
+        success {
+            echo '🎉 Deployment successful'
+        }
+        failure {
+            echo '❌ Deployment failed'
+        }
+    }
+}

@@ -43,7 +43,7 @@ heap_file_api="/tmp/heapdump_api__${host}_${ts}.hprof"
 API_OOM_COMMAND="aws s3 mv ${heap_file_api} s3://${S3_HEAPDUMP_BUCKET}/api/ && kill -9 %p"
 
 API_EXTRA_PARAMS=(
-  -XX:MaxRAMPercentage=80.0
+  -XX:MaxRAMPercentage=35.0
   -XX:+UseG1GC
   -XX:InitiatingHeapOccupancyPercent=10
   -XX:+HeapDumpOnOutOfMemoryError
@@ -58,7 +58,7 @@ heap_file_job="/tmp/heapdump_job__${host}_${ts}.hprof"
 JOB_OOM_COMMAND="aws s3 mv ${heap_file_job} s3://${S3_HEAPDUMP_BUCKET}/job/ && kill -9 %p"
 
 JOB_EXTRA_PARAMS=(
-  -XX:MaxRAMPercentage=80.0
+  -XX:MaxRAMPercentage=35.0
   -XX:+UseG1GC
   -XX:InitiatingHeapOccupancyPercent=10
   -XX:+HeapDumpOnOutOfMemoryError
@@ -258,7 +258,7 @@ validate_service() {
 
 shopt -s nocasematch
 
-echo "APP_TYPE is jjjjj : $APP_TYPE"
+echo "APP_TYPE is : $APP_TYPE"
 if [[ "$APP_TYPE" == "API" ]]; then
   check_paths "API"
   app_conf="application.conf"
