@@ -9,6 +9,17 @@ ENV_FILE="/opt/AlertEnterprise/configs/.env"
 [ ! -f "$ENV_FILE" ] && echo "❌ ENV file missing: $ENV_FILE" && exit 1
 source "$ENV_FILE"
 
+
+export S3_SRC_PATH="$1"
+export gitBranch="$2"
+export buildVersion="$3"
+
+echo "DEBUG:"
+echo "S3_SRC_PATH=$S3_SRC_PATH"
+echo "gitBranch=$gitBranch"
+echo "buildVersion=$buildVersion"
+
+
 ################################
 # BUILD ARTIFACTS LIST
 ################################
