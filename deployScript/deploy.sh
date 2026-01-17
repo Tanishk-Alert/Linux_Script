@@ -474,7 +474,10 @@ applicationStart() {
                 confFile=conf/jobserver.conf
             fi
 
-            cd "${INIT_APPS_PATH}/alert-$a-server-1.0/"
+            APP_DIR="${INIT_APPS_PATH}/alert-${a}-server-1.0"
+            LOG_FILE="${LOGS_PATH}/${a}.log"
+
+            cd "$APP_DIR" || exit 1
 
             aeJVMParams=${myJVMParams:-"-XX:+UseContainerSupport -XX:MaxRAMPercentage=35.0 -XX:+UseG1GC"}
 
@@ -487,7 +490,8 @@ applicationStart() {
                 -Dorg.owasp.esapi.resources=conf \
                 -Dlogback.debug=true \
                 -Dlog4j.configurationFile=conf/log4j2.xml \
-                play.core.server.ProdServerStart &
+                play.core.server.ProdServerStart \
+                > "$LOG_FILE" 2>&1 &
         done
     fi
 
@@ -501,7 +505,10 @@ applicationStart() {
             httPort=9095
             confFile=conf/application.conf
 
-            cd "${INIT_APPS_PATH}/alert-$a-1.0/"
+            APP_DIR="${INIT_APPS_PATH}/alert-${a}-1.0"
+            LOG_FILE="${LOGS_PATH}/${a}.log"
+
+            cd "$APP_DIR" || exit 1
 
             aeJVMParams=${myJVMParams:-"-XX:+UseContainerSupport -XX:MaxRAMPercentage=35.0 -XX:+UseG1GC"}
 
@@ -514,9 +521,12 @@ applicationStart() {
                 -Dorg.owasp.esapi.resources=conf \
                 -Dlogback.debug=true \
                 -Dlog4j.configurationFile=conf/log4j2.xml \
-                play.core.server.ProdServerStart &
+                play.core.server.ProdServerStart \
+                > "$LOG_FILE" 2>&1 &
         done
     fi
+    
+    echo "🎉 api and job started successfully"
 }
 
 flyway_run() {
