@@ -143,44 +143,44 @@ fi
 
 }
 
+################################
+# DOWNLOAD BUILD ARTIFACTS
+################################
 download_build() {
     echo "📥 Downloading build artifacts..."
-
     mkdir -p builds
 
-    ############################
-    # APPLICATION
-    ############################
+    download_artifact() {
+        local artifact="$1"
+        local src="${S3_SRC_PATH}/${gitBranch}/${buildVersion}/${artifact}.zip"
+
+        echo "⬇️ Downloading ${artifact}.zip"
+        if aws s3 cp "$src" builds/; then
+            echo "✔ Downloaded ${artifact}.zip"
+        else
+            echo "⚠️ ${artifact}.zip not found, skipping"
+        fi
+    }
+
+    ################################
+    # APPLICATION artifacts
+    ################################
     if [[ " ${ARTIFACTS[*]} " == *" application "* ]]; then
         echo "➡️ Downloading APPLICATION artifacts"
 
-        for a in api job ui DB; do
-            SRC="${S3_SRC_PATH}/${gitBranch}/${buildVersion}/${a}.zip"
-
-            echo "   ⬇️ $a.zip"
-            if aws s3 cp "$SRC" builds/; then
-                echo "   ✔ Downloaded $a.zip"
-            else
-                echo "   ⚠️ $a.zip not found, skipping"
-            fi
+        for artifact in api job ui DB; do
+            download_artifact "$artifact"
         done
     fi
 
-    ############################
-    # AGENT
-    ############################
+    ################################
+    # AGENT artifacts
+    ################################
     if [[ " ${ARTIFACTS[*]} " == *" agent "* ]]; then
         echo "➡️ Downloading AGENT artifacts"
 
-        for a in agentserver agentDB; do
-            SRC="${S3_SRC_PATH}/${gitBranch}/${buildVersion}/${a}.zip"
-
-            echo "   ⬇️ $a.zip"
-            if aws s3 cp "$SRC" builds/; then
-                echo "   ✔ Downloaded $a.zip"
-            else
-                echo "   ⚠️ $a.zip not found, skipping"
-            fi
+        for artifact in agentserver agentDB; do
+            download_artifact "$artifact"
         done
     fi
 
@@ -189,165 +189,201 @@ download_build() {
 
 
 
+################################
+# EXTRACT ARTIFACTS (STANDARDIZED)
+################################
 extract_zip() {
     echo "📦 Extracting artifacts..."
 
-    # -------------------------
+    extract_artifact() {
+        local artifact="$1"
+        local zip_file="${BUILD_PATH}/${artifact}.zip"
+
+        if [ -f "$zip_file" ]; then
+            echo "✔ Extracting ${artifact}.zip"
+            unzip -qq "$zip_file" -d "$INIT_APPS_PATH"
+        else
+            echo "⚠️ ${artifact}.zip not found, skipping"
+        fi
+    }
+
+    ################################
     # APPLICATION artifacts
-    # -------------------------
+    ################################
     if [[ " ${ARTIFACTS[*]} " == *" application "* ]]; then
         echo "➡️ Extracting APPLICATION artifacts"
 
-        for a in api job ui DB; do
-            zip_file="$BUILD_PATH/$a.zip"
-
-            if [ -f "$zip_file" ]; then
-                echo "   ✔ Extracting $a.zip"
-                unzip -qq "$zip_file" -d "$INIT_APPS_PATH"
-            else
-                echo "   ⚠️ $a.zip not found, skipping"
-            fi
+        for artifact in api job ui DB; do
+            extract_artifact "$artifact"
         done
     fi
 
-    # -------------------------
+    ################################
     # AGENT artifacts
-    # -------------------------
+    ################################
     if [[ " ${ARTIFACTS[*]} " == *" agent "* ]]; then
         echo "➡️ Extracting AGENT artifacts"
 
-        for a in agentserver agentDB; do
-            zip_file="$BUILD_PATH/$a.zip"
-
-            if [ -f "$zip_file" ]; then
-                echo "   ✔ Extracting $a.zip"
-                unzip -qq "$zip_file" -d "$INIT_APPS_PATH"
-            else
-                echo "   ⚠️ $a.zip not found, skipping"
-            fi
+        for artifact in agentserver agentDB; do
+            extract_artifact "$artifact"
         done
     fi
 }
 
 
+################################
+# COPY ENV CONFIGS (STANDARDIZED)
+################################
 copy_env_configs() {
     echo "⚙️ Copying ENV configs..."
 
-    ############################
-    # APPLICATION
-    ############################
-    if [[ " ${ARTIFACTS[*]} " == *" application "* ]]; then
-        for a in api job; do
-            echo "➡️ Copying configs for application: $a"
+    copy_configs() {
+        local service="$1"
+        local app_conf_dir="$2"
+        local config_src="$3"
+        local apps_path="$4"
 
-            APP_CONF_DIR="$INIT_APPS_PATH/alert-$a-server-1.0/conf"
-            APPS_PATH="$INIT_APPS_PATH/alert-api-server-1.0"
+        echo "➡️ Copying configs for ${service^^}"
 
-            cp "$CONFIG_PATH/$a/override_env.conf" "$APP_CONF_DIR/"
-            cp "$CONFIG_PATH/$a/log4j2.xml" "$APP_CONF_DIR/"
-
-            Branch12="$APPS_PATH/conf/keystore.conf"
-            Branch11="$APPS_PATH/lib/keystore-0.0.1-SNAPSHOT.jar"
-
-            # ---- Branch 12 keystore handling ----
-            if [ -f "$Branch12" ]; then
-                echo "🔐 Updating keystore.conf for $a (Branch12)"
-
-                cp "$CONFIG_PATH/$a/keystore.conf" "$APP_CONF_DIR/"
-
-                sed -i "s|{AEKEYSTOREFILE}|$keystoreFile|g" \
-                    "$APP_CONF_DIR/keystore.conf"
-
-                sed -i "s|{AEKEYSTOREPASSWD}|$KEYSTORE_KEY_PATH|g" \
-                    "$APP_CONF_DIR/keystore.conf"
-            fi
-        done
-    fi
-
-    ############################
-    # AGENT
-    ############################
-    if [[ " ${ARTIFACTS[*]} " == *" agent "* ]]; then
-        echo "➡️ Copying configs for agent"
-
-        APP_CONF_DIR="$INIT_APPS_PATH/alert-agent-1.0/conf"
-        APPS_PATH="$INIT_APPS_PATH/alert-agent-1.0"
-
-        cp "$CONFIG_PATH/alert-agent-1.0/override_env.conf" "$APP_CONF_DIR/"
-        cp "$CONFIG_PATH/alert-agent-1.0/log4j2.xml" "$APP_CONF_DIR/"
-
-        Branch12="$APPS_PATH/conf/keystore.conf"
-        Branch11="$APPS_PATH/lib/keystore-0.0.1-SNAPSHOT.jar"
+        cp "${config_src}/override_env.conf" "${app_conf_dir}/"
+        cp "${config_src}/log4j2.xml" "${app_conf_dir}/"
 
         # ---- Branch 12 keystore handling ----
-        if [ -f "$Branch12" ]; then
-            echo "🔐 Updating keystore.conf for agent"
+        if [ -f "${apps_path}/conf/keystore.conf" ]; then
+            echo "🔐 Updating keystore.conf for ${service^^}"
 
-            cp "$CONFIG_PATH/alert-agent-1.0/keystore.conf" "$APP_CONF_DIR/"
+            cp "${config_src}/keystore.conf" "${app_conf_dir}/"
 
-            sed -i "s|{AEKEYSTOREFILE}|$keystoreFile|g" \
-                "$APP_CONF_DIR/keystore.conf"
+            sed -i "s|{AEKEYSTOREFILE}|${keystoreFile}|g" \
+                "${app_conf_dir}/keystore.conf"
 
-            sed -i "s|{AEKEYSTOREPASSWD}|$KEYSTORE_KEY_PATH|g" \
-                "$APP_CONF_DIR/keystore.conf"
+            sed -i "s|{AEKEYSTOREPASSWD}|${KEYSTORE_KEY_PATH}|g" \
+                "${app_conf_dir}/keystore.conf"
         fi
+    }
+
+    ################################
+    # APPLICATION (API + JOB)
+    ################################
+    if [[ " ${ARTIFACTS[*]} " == *" application "* ]]; then
+        copy_configs \
+            "api" \
+            "${INIT_APPS_PATH}/alert-api-server-1.0/conf" \
+            "${CONFIG_PATH}/api" \
+            "${INIT_APPS_PATH}/alert-api-server-1.0"
+
+        copy_configs \
+            "job" \
+            "${INIT_APPS_PATH}/alert-job-server-1.0/conf" \
+            "${CONFIG_PATH}/job" \
+            "${INIT_APPS_PATH}/alert-api-server-1.0"
+    fi
+
+    ################################
+    # AGENT
+    ################################
+    if [[ " ${ARTIFACTS[*]} " == *" agent "* ]]; then
+        copy_configs \
+            "agent" \
+            "${INIT_APPS_PATH}/alert-agent-1.0/conf" \
+            "${CONFIG_PATH}/alert-agent-1.0" \
+            "${INIT_APPS_PATH}/alert-agent-1.0"
     fi
 }
 
 
+################################
+# UPDATE environment.conf
+################################
 update_environment_conf() {
     echo "📝 Updating environment.conf..."
 
-    if [[ " ${ARTIFACTS[*]} " == *" application "* ]]; then
-        for a in api job; do
-            env_file="$INIT_APPS_PATH/alert-$a-server-1.0/conf/environment.conf"
-            [ -f "$env_file.original" ] || continue
-            cp "$env_file.original" "$env_file"
-            sed -i 's/\r$//' "$env_file"
-            printf "\n" >> "$env_file"
+    update_env() {
+        local service="$1"
+        local env_file="$2"
+
+        local ORIGINAL="${env_file}.original"
+
+        [ -f "$ORIGINAL" ] || {
+            echo "⚠️ Missing ${ORIGINAL}, skipping ${service}"
+            return
+        }
+
+        cp "$ORIGINAL" "$env_file"
+        sed -i 's/\r$//' "$env_file"
+
+        printf "\n" >> "$env_file"
+        grep -q '^include "override_env"' "$env_file" || \
             echo 'include "override_env"' >> "$env_file"
-        done
+
+        echo "✔ Updated environment.conf for ${service^^}"
+    }
+
+    ################################
+    # APPLICATION (API + JOB)
+    ################################
+    if [[ " ${ARTIFACTS[*]} " == *" application "* ]]; then
+        update_env "api" \
+            "$INIT_APPS_PATH/alert-api-server-1.0/conf/environment.conf"
+
+        update_env "job" \
+            "$INIT_APPS_PATH/alert-job-server-1.0/conf/environment.conf"
     fi
 
+    ################################
+    # AGENT
+    ################################
     if [[ " ${ARTIFACTS[*]} " == *" agent "* ]]; then
-        env_file="$INIT_APPS_PATH/alert-agent-1.0/conf/environment.conf"
-        [ -f "$env_file.original" ] || return
-        cp "$env_file.original" "$env_file"
-        sed -i 's/\r$//' "$env_file"
-        printf "\n" >> "$env_file"
-        echo 'include "override_env"' >> "$env_file"
+        update_env "agent" \
+            "$INIT_APPS_PATH/alert-agent-1.0/conf/environment.conf"
     fi
 }
 
+################################
+# KEYSTORE SETUP (STANDARDIZED)
+################################
 setup_keystore() {
-    echo "Keystore setup Start"
+    echo "🔐 Keystore setup started"
 
-    # -------------------------------
-    # Select application type
-    # -------------------------------
-    if [[ " ${ARTIFACTS[*]} " == *" application "* ]]; then
-        APPS_PATH="${INIT_APPS_PATH}/alert-api-server-1.0"
-        Branch12="${APPS_PATH}/conf/keystore.conf"
-        Branch11="${APPS_PATH}/lib/keystore-0.0.1-SNAPSHOT.jar"
-    else
-        APPS_PATH="${INIT_APPS_PATH}/alert-agent-1.0"
-        Branch12="${APPS_PATH}/conf/keystore.conf"
-        Branch11="${APPS_PATH}/lib/keystore-0.0.1-SNAPSHOT.jar"
-    fi
+    [ -z "$keystorePass" ] && { echo "❌ keystorePass missing"; exit 1; }
+    [ -z "$keystoreFile" ] && { echo "❌ keystoreFile missing"; exit 1; }
 
+    ################################
+    # Select service paths
+    ################################
+    select_app_paths() {
+        local service="$1"
 
-    # -------------------------------
-    # New keystore setup (Branch 12)
-    # -------------------------------
-    new_keystore_setup() {
+        case "$service" in
+            application)
+                APPS_PATH="${INIT_APPS_PATH}/alert-api-server-1.0"
+                ;;
+            agent)
+                APPS_PATH="${INIT_APPS_PATH}/alert-agent-1.0"
+                ;;
+            *)
+                echo "❌ Unknown service: $service"
+                exit 1
+                ;;
+        esac
+
+        BRANCH12_CONF="${APPS_PATH}/conf/keystore.conf"
+        BRANCH11_JAR="${APPS_PATH}/lib/keystore-0.0.1-SNAPSHOT.jar"
+    }
+
+    ################################
+    # Insert secrets (generic)
+    ################################
+    insert_secrets_branch12() {
         printf "%s" "$keystorePass" > "$KEYSTORE_KEY_PATH"
 
-        echo "$KEYSTORE_SECRETS" | jq -c '.[]' | while read -r item; do
-            key=$(echo "$item" | jq -r 'keys[0]')
-            val=$(echo "$item" | jq -r '.[keys[0]]')
-            echo "Running for $key"
+        jq -c '.[]' <<< "$KEYSTORE_SECRETS" | while read -r item; do
+            key=$(jq -r 'keys[0]' <<< "$item")
+            val=$(jq -r '.[keys[0]]' <<< "$item")
 
+            echo "➡️ Inserting key: $key (branch12)"
             cd "$APPS_PATH/lib" || exit 1
+
             java -cp "./*" \
                 -Dlog4j.configurationFile=../conf/log4j2.xml \
                 -Dcrypto.configurationFile=../conf/keystore.conf \
@@ -357,92 +393,128 @@ setup_keystore() {
         rm -f "$KEYSTORE_KEY_PATH"
     }
 
-    # -------------------------------
-    # Old keystore setup (Branch 11)
-    # -------------------------------
-    old_keystore_setup() {
-        jq -c '.KEYSTORE_SECRETS[]' <<< "$KEYSTORE_SECRETS" | while read -r item; do
-            key=$(echo "$item" | jq -r 'keys[0]')
-            val=$(echo "$item" | jq -r '.[keys[0]]')
-            echo "Running for $key"
+    insert_secrets_branch11() {
+        jq -c '.[]' <<< "$KEYSTORE_SECRETS" | while read -r item; do
+            key=$(jq -r 'keys[0]' <<< "$item")
+            val=$(jq -r '.[keys[0]]' <<< "$item")
 
+            echo "➡️ Inserting key: $key (branch11)"
             cd "$APPS_PATH/lib" || exit 1
+
             java -jar keystore-0.0.1-SNAPSHOT.jar \
                 "$keystoreFile" \
                 "$keystorePass" \
                 "$val" "$key" || exit 1
         done
-        echo "Keystore setup for branch 11 completed."
     }
 
-    # -------------------------------
-    # Decide which keystore logic to run
-    # -------------------------------
-    if [ -f "$Branch12" ]; then
-        echo "Creating new keystore of branch 12..."
+    ################################
+    # Create keystore
+    ################################
+    create_keystore_branch12() {
+        keytool -genseckey -keyalg AES -keysize 256 \
+            -keystore "$keystoreFile" \
+            -storetype PKCS12 \
+            -storepass "$keystorePass" \
+            -keypass "$keystorePass"
+    }
 
-        if [ ! -f "$keystoreFile" ]; then
-            keytool -genseckey -keyalg AES -keysize 256 \
-                -keystore "$keystoreFile" -storetype PKCS12 \
-                -storepass "$keystorePass" -keypass "$keystorePass"
-            new_keystore_setup
-        fi
+    create_keystore_branch11() {
+        keytool -genkeypair \
+            -dname "cn=Alert Enterprise, ou=Java, o=Oracle, c=US" \
+            -alias alert \
+            -keystore "$keystoreFile" \
+            -storepass "$keystorePass" \
+            -keypass "$keystorePass"
+    }
 
-    elif [ -f "$Branch11" ]; then
-        echo "Creating new keystore for branch 11..."
-
-        if [ ! -f "$keystoreFile" ]; then
-            keytool -genkeypair \
-                -dname "cn=Alert Enterprise, ou=Java, o=Oracle, c=US" \
-                -alias alert \
-                -keystore "$keystoreFile" \
-                -storepass "$keystorePass" -keypass "$keystorePass"
-            old_keystore_setup
-        fi
+    ################################
+    # Decide service
+    ################################
+    if [[ " ${ARTIFACTS[*]} " == *" application "* ]]; then
+        SERVICE="application"
+    elif [[ " ${ARTIFACTS[*]} " == *" agent "* ]]; then
+        SERVICE="agent"
+    else
+        echo "⚠️ No service selected for keystore setup"
+        return
     fi
 
-    echo "Keystore setup completed."
+    select_app_paths "$SERVICE"
+
+    ################################
+    # Branch detection + execution
+    ################################
+    if [ -f "$BRANCH12_CONF" ]; then
+        echo "🧭 Detected Branch 12 keystore"
+
+        if [ ! -f "$keystoreFile" ]; then
+            create_keystore_branch12
+            insert_secrets_branch12
+        else
+            echo "ℹ️ Keystore already exists, skipping creation"
+        fi
+
+    elif [ -f "$BRANCH11_JAR" ]; then
+        echo "🧭 Detected Branch 11 keystore"
+
+        if [ ! -f "$keystoreFile" ]; then
+            create_keystore_branch11
+            insert_secrets_branch11
+        else
+            echo "ℹ️ Keystore already exists, skipping creation"
+        fi
+    else
+        echo "❌ No keystore mechanism found"
+        exit 1
+    fi
+
+    echo "✅ Keystore setup completed"
 }
 
+
+################################
+# SCRIPT LINKS SETUP
+################################
 scriptlinks() {
     echo "🔗 Setting up script links..."
-
     mkdir -p "$SCRIPTS_PATH"
+
+    setup_script() {
+        local service="$1"
+        local script_name="$2"
+        local binary_name="$3"
+
+        local SRC="/tmp/scripts/startupScripts/${script_name}"
+        local DEST="${SCRIPTS_PATH}/${script_name}"
+        local LINK="/usr/bin/${binary_name}"
+
+        echo "➡️ Setting up ${service^^} scripts"
+
+        if [ ! -f "$DEST" ]; then
+            cp "$SRC" "$DEST"
+            chmod +x "$DEST"
+            echo "✔ Copied ${script_name}"
+        fi
+
+        if [ ! -L "$LINK" ]; then
+            ln -s "$DEST" "$LINK"
+            echo "✔ Linked ${binary_name} → ${LINK}"
+        fi
+    }
 
     ############################
     # APPLICATION
     ############################
     if [[ " ${ARTIFACTS[*]} " == *" application "* ]]; then
-        echo "➡️ Setting up application scripts"
-
-        if [ ! -f "$SCRIPTS_PATH/aeapps.sh" ]; then
-            cp "/tmp/scripts/startupScripts/aeapps.sh" "$SCRIPTS_PATH/"
-            chmod +x "$SCRIPTS_PATH/aeapps.sh"
-            echo "✔ Copied aeapps.sh"
-        fi
-
-        if [ ! -L "/usr/bin/aeapps" ]; then
-            ln -s "$SCRIPTS_PATH/aeapps.sh" /usr/bin/aeapps
-            echo "✔ Linked aeapps → /usr/bin/aeapps"
-        fi
+        setup_script "application" "aeapps.sh" "aeapps"
     fi
 
     ############################
     # AGENT
     ############################
     if [[ " ${ARTIFACTS[*]} " == *" agent "* ]]; then
-        echo "➡️ Setting up agent scripts"
-
-        if [ ! -f "$SCRIPTS_PATH/aeagent.sh" ]; then
-            cp "/tmp/scripts/startupScripts/aeagent.sh" "$SCRIPTS_PATH/"
-            chmod +x "$SCRIPTS_PATH/aeagent.sh"
-            echo "✔ Copied aeagent.sh"
-        fi
-
-        if [ ! -L "/usr/bin/aeagent" ]; then
-            ln -s "$SCRIPTS_PATH/aeagent.sh" /usr/bin/aeagent
-            echo "✔ Linked aeagent → /usr/bin/aeagent"
-        fi
+        setup_script "agent" "aeagent.sh" "aeagent"
     fi
 
     echo "✅ Script links setup completed"
@@ -450,124 +522,145 @@ scriptlinks() {
 
 
 ################################
-# APPLICATION START (AS REQUESTED)
+# APPLICATION / AGENT START
 ################################
-applicationStart() { 
-    [ -z "$keystorePass" ] && echo "Missing keystorePass!" && exit 1
+applicationStart() {
+    [ -z "$keystorePass" ] && echo "❌ Missing keystorePass!" && exit 1
 
-    export KEYSTORE_PASS="$keystorePass"    
+    export KEYSTORE_PASS="$keystorePass"
     ulimit -n 65535
-    timestamp=$(date +%F_%T)
+
+    start_service() {
+        local service="$1"
+        local http_port="$2"
+        local conf_file="$3"
+        local app_dir="$4"
+
+        local LOG_FILE="${LOGS_PATH}/${service}.log"
+        local JVM_PARAMS="${myJVMParams:-"-XX:+UseContainerSupport -XX:MaxRAMPercentage=35.0 -XX:+UseG1GC"}"
+
+        echo "⬇️ Starting ${service^^}"
+        cd "$app_dir" || { echo "❌ Directory not found: $app_dir"; exit 1; }
+
+        mkdir -p "/mnt/${service}"
+
+        nohup java -cp "./lib/*" ${JVM_PARAMS} \
+            -Dhttp.port="${http_port}" \
+            -Dconfig.file="${conf_file}" \
+            -Dorg.owasp.esapi.resources=conf \
+            -Dlogback.debug=true \
+            -Dlog4j.configurationFile=conf/log4j2.xml \
+            play.core.server.ProdServerStart \
+            > "${LOG_FILE}" 2>&1 &
+
+        echo "✅ ${service^^} started on port ${http_port}"
+    }
 
     ################################
-    # APPLICATION
+    # APPLICATION (API + JOB)
     ################################
     if [[ " ${ARTIFACTS[*]} " == *" application "* ]]; then
-        echo "⬇️ starting application"
+        start_service "api" 9000 "conf/application.conf" \
+            "${INIT_APPS_PATH}/alert-api-server-1.0"
 
-        for a in api job; do
-            if [ "$a" = "api" ]; then
-                httPort=9000
-                confFile=conf/application.conf
-            else
-                httPort=9090
-                confFile=conf/jobserver.conf
-            fi
-
-            APP_DIR="${INIT_APPS_PATH}/alert-${a}-server-1.0"
-            LOG_FILE="${LOGS_PATH}/${a}.log"
-
-            cd "$APP_DIR" || exit 1
-
-            aeJVMParams=${myJVMParams:-"-XX:+UseContainerSupport -XX:MaxRAMPercentage=35.0 -XX:+UseG1GC"}
-
-            mkdir -p /mnt/"$a"
-            echo "starting app...."
-
-            nohup java -cp "./lib/*" $aeJVMParams \
-                -Dhttp.port="$httPort" \
-                -Dconfig.file="$confFile" \
-                -Dorg.owasp.esapi.resources=conf \
-                -Dlogback.debug=true \
-                -Dlog4j.configurationFile=conf/log4j2.xml \
-                play.core.server.ProdServerStart \
-                > "$LOG_FILE" 2>&1 &
-        done
+        start_service "job" 9090 "conf/jobserver.conf" \
+            "${INIT_APPS_PATH}/alert-job-server-1.0"
     fi
 
     ################################
     # AGENT
     ################################
     if [[ " ${ARTIFACTS[*]} " == *" agent "* ]]; then
-        echo "⬇️ starting AGENT"
-
-        for a in agent; do
-            httPort=9095
-            confFile=conf/application.conf
-
-            APP_DIR="${INIT_APPS_PATH}/alert-${a}-1.0"
-            LOG_FILE="${LOGS_PATH}/${a}.log"
-
-            cd "$APP_DIR" || exit 1
-
-            aeJVMParams=${myJVMParams:-"-XX:+UseContainerSupport -XX:MaxRAMPercentage=35.0 -XX:+UseG1GC"}
-
-            mkdir -p /mnt/"$a"
-            echo "starting app...."
-
-            nohup java -cp "./lib/*" $aeJVMParams \
-                -Dhttp.port="$httPort" \
-                -Dconfig.file="$confFile" \
-                -Dorg.owasp.esapi.resources=conf \
-                -Dlogback.debug=true \
-                -Dlog4j.configurationFile=conf/log4j2.xml \
-                play.core.server.ProdServerStart \
-                > "$LOG_FILE" 2>&1 &
-        done
+        start_service "agent" 9095 "conf/application.conf" \
+            "${INIT_APPS_PATH}/alert-agent-1.0"
     fi
-    
-    echo "🎉 api and job started successfully"
+
+    echo "🎉 All requested services started successfully"
 }
+
 
 flyway_run() {
-    echo "🛫 Running Flyway migrations..."
-
+    echo "🛫 Starting Flyway migrations..."
     mkdir -p "$LOGS_PATH/flyway"
 
-    ################################
-    # APPLICATION DB
-    ################################
+    set -o pipefail
+
+    run_flyway() {
+        local service="$1"
+        local locations="$2"
+        local logfile="$3"
+        local dbSchema="$4"
+
+        echo "➡️ Running Flyway for ${service^^} DB"
+
+        flyway \
+            -user="$flywayUser" \
+            -password="$flywayPass" \
+            -url="$dbURL" \
+            -schemas="$dbSchema" \
+            -locations="$locations" \
+            migrate \
+            2>&1 | tee -a "$logfile"
+
+        echo "✅ Flyway completed for ${service^^} DB"
+    }
+
+    # -------- Application DB --------
     if [[ " ${ARTIFACTS[*]} " == *" application "* ]]; then
-        echo "➡️ Running Flyway for APPLICATION DB"
-
-        flyway \
-            -user="$flywayUser" \
-            -password="$flywayPass" \
-            -url="$dbURL" \
-            -schemas="$dbSchema" \
-            -locations="filesystem:$INIT_APPS_PATH/db/migration/default/postgre,filesystem:$INIT_APPS_PATH/db/migration/default/postgreDML" \
-            migrate \
-            2>&1 | tee -a "$LOGS_PATH/flyway/flyway_application.log"
+        run_flyway \
+            "application" \
+            "filesystem:$INIT_APPS_PATH/db/migration/default/postgre,filesystem:$INIT_APPS_PATH/db/migration/default/postgreDML" \
+            "$LOGS_PATH/flyway/flyway_application.log"
+            "$dbSchema_api"
     fi
 
-    ################################
-    # AGENT DB
-    ################################
+    # -------- Agent DB --------
     if [[ " ${ARTIFACTS[*]} " == *" agent "* ]]; then
-        echo "➡️ Running Flyway for AGENT DB"
-
-        flyway \
-            -user="$flywayUser" \
-            -password="$flywayPass" \
-            -url="$dbURL" \
-            -schemas="$dbSchema" \
-            -locations="filesystem:$INIT_APPS_PATH/agentdb/migration/default/postgre,filesystem:$INIT_APPS_PATH/agentdb/migration/default/postgreDML" \
-            migrate \
-            2>&1 | tee -a "$LOGS_PATH/flyway/flyway_agent.log"
+        run_flyway \
+            "agent" \
+            "filesystem:$INIT_APPS_PATH/agentdb/migration/default/postgre,filesystem:$INIT_APPS_PATH/agentdb/migration/default/postgreDML" \
+            "$LOGS_PATH/flyway/flyway_agent.log"
+            "$dbSchema_agent"
     fi
 
-    echo "✅ Flyway migration completed"
+    echo "🎉 Flyway migrations finished successfully"
 }
+
+
+validate() {
+    local max_retries=20
+    local sleep_time=30
+
+    check_port() {
+        local service="$1"
+        local port="$2"
+        local retry_count=0
+
+        while ! netstat -tuln | grep -q ":${port}\b"; do
+            if (( retry_count >= max_retries )); then
+                echo "❌ ${service} not up on port ${port} after $((max_retries * sleep_time))s"
+                exit 1
+            fi
+            ((retry_count++))
+            echo "Waiting for ${service} on port ${port}... (Attempt ${retry_count}/${max_retries})"
+            sleep "${sleep_time}"
+        done
+
+        echo "✅ ${service} is up and running on port ${port}"
+    }
+
+    # -------- Application services --------
+    if [[ " ${ARTIFACTS[*]} " == *" application "* ]]; then
+        check_port "api" 9000
+        check_port "job" 9090
+    fi
+
+    # -------- Agent service --------
+    if [[ " ${ARTIFACTS[*]} " == *" agent "* ]]; then
+        check_port "agent" 9095
+    fi
+}
+
 
 
 ################################
@@ -585,6 +678,7 @@ main() {
     scriptlinks
     applicationStart
     flyway_run
+    validate
 }
 
 main
