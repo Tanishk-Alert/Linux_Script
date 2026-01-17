@@ -547,7 +547,7 @@ flyway_run() {
             -schemas="$dbSchema" \
             -locations="filesystem:$INIT_APPS_PATH/db/migration/default/postgre,filesystem:$INIT_APPS_PATH/db/migration/default/postgreDML" \
             migrate \
-            >> "$LOGS_PATH/flyway/flyway_application.log" 2>&1
+            2>&1 | tee -a "$LOGS_PATH/flyway/flyway_application.log"
     fi
 
     ################################
@@ -563,7 +563,7 @@ flyway_run() {
             -schemas="$dbSchema" \
             -locations="filesystem:$INIT_APPS_PATH/agentdb/migration/default/postgre,filesystem:$INIT_APPS_PATH/agentdb/migration/default/postgreDML" \
             migrate \
-            >> "$LOGS_PATH/flyway/flyway_agent.log" 2>&1
+            2>&1 | tee -a "$LOGS_PATH/flyway/flyway_agent.log"
     fi
 
     echo "✅ Flyway migration completed"
