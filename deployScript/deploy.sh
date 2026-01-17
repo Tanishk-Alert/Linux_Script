@@ -677,8 +677,8 @@ main() {
     setup_keystore
     scriptlinks
     applicationStart
-    flyway_run
     validate
+    flyway_run
 }
 
 main
