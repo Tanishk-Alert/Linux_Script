@@ -549,8 +549,8 @@ applicationStart() {
             -Dorg.owasp.esapi.resources=conf \
             -Dlogback.debug=true \
             -Dlog4j.configurationFile=conf/log4j2.xml \
-            play.core.server.ProdServerStart & \
-            > "${LOG_FILE}" 2>&1 
+            play.core.server.ProdServerStart  \
+            > "${LOG_FILE}" 2>&1  &
 
         echo "✅ ${service^^} started on port ${http_port}"
     }
@@ -610,7 +610,7 @@ flyway_run() {
             "application" \
             "filesystem:$INIT_APPS_PATH/db/migration/default/postgre,filesystem:$INIT_APPS_PATH/db/migration/default/postgreDML" \
             "$LOGS_PATH/flyway/flyway_application.log" \
-            "$dbSchema_api"
+            "$dbSchemaApp"
     fi
 
     # -------- Agent DB --------
@@ -619,7 +619,7 @@ flyway_run() {
             "agent" \
             "filesystem:$INIT_APPS_PATH/agentdb/migration/default/postgre,filesystem:$INIT_APPS_PATH/agentdb/migration/default/postgreDML" \
             "$LOGS_PATH/flyway/flyway_agent.log" \
-            "$dbSchema_agent"
+            "$dbSchemaAgent"
     fi
 
     echo "🎉 Flyway migrations finished successfully"
