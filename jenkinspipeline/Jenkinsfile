@@ -13,6 +13,11 @@ pipeline {
             defaultValue: 'application',
             description: 'Artifacts to deploy (comma-separated: application,agent)'
         )
+        booleanParam(
+            name: 'flywayFixed',
+            defaultValue: false,
+            description: 'Run only Flyway migrations'
+        )
     }
 
     /* ================= ENVIRONMENT ================= */
@@ -32,6 +37,7 @@ pipeline {
                     if (!params.buildVersion?.trim()) error 'buildVersion is required'
                     if (!params.IP?.trim())           error 'IP is required'
                     if (!params.artifacts?.trim())    error 'artifacts is required'
+                    if (!params.flywayFixed?.trim())    error 'flywayFixed is required'
                 }
             }
         }
@@ -84,6 +90,17 @@ set +o history
 # ---------------- TEMP AWS CREDENTIALS ----------------
 export AWS_SHARED_CREDENTIALS_FILE=\$(mktemp)
 
+cleanup() {
+    rm -f "$AWS_SHARED_CREDENTIALS_FILE"
+    unset AWS_SHARED_CREDENTIALS_FILE
+    unset AWS_ACCESS_KEY_ID
+    unset AWS_SECRET_ACCESS_KEY
+    unset GIT_TOKEN
+}
+
+# 👇 GUARANTEED CLEANUP (SUCCESS OR FAILURE)
+trap cleanup EXIT
+
 aws configure set aws_access_key_id     "${AWS_ACCESS_KEY_ID}"
 aws configure set aws_secret_access_key "${AWS_SECRET_ACCESS_KEY}"
 # aws configure set region ap-south-1
@@ -95,14 +112,15 @@ git clone https://${GIT_TOKEN}@github.com/Tanishk-Alert/Linux_Script.git /tmp/sc
 bash /tmp/scripts/deployScript/deploy.sh \
     "${S3_SRC_PATH}" \
     "${gitBranch}" \
-    "${buildVersion}"
+    "${buildVersion}" \
+    "${flywayFixed}"
 
 # ---------------- CLEANUP ----------------
-rm -f "\$AWS_SHARED_CREDENTIALS_FILE"
-unset AWS_SHARED_CREDENTIALS_FILE
-unset AWS_ACCESS_KEY_ID
-unset AWS_SECRET_ACCESS_KEY
-unset GIT_TOKEN
+#rm -f "\$AWS_SHARED_CREDENTIALS_FILE"
+#unset AWS_SHARED_CREDENTIALS_FILE
+#unset AWS_ACCESS_KEY_ID
+#unset AWS_SECRET_ACCESS_KEY
+#nset GIT_TOKEN
 
 INNER_EOF
 EOF

@@ -12,6 +12,7 @@ source "$ENV_FILE"
 export S3_SRC_PATH="$1"
 export gitBranch="$2"
 export buildVersion="$3"
+export flywayFixed="$4"
 
 echo "DEBUG:"
 echo "S3_SRC_PATH=$S3_SRC_PATH"
@@ -633,42 +634,6 @@ flyway_run() {
     echo "🎉 Flyway migrations finished successfully"
 }
 
-
-# validate() {
-#     local max_retries=20
-#     local sleep_time=30
-
-#     check_port() {
-#         local service="$1"
-#         local port="$2"
-#         local retry_count=0
-
-#         while ! netstat -tuln | grep -q ":${port}\b"; do
-#             if (( retry_count >= max_retries )); then
-#                 echo "❌ ${service} not up on port ${port} after $((max_retries * sleep_time))s"
-#                 exit 1
-#             fi
-#             ((retry_count++))
-#             echo "Waiting for ${service} on port ${port}... (Attempt ${retry_count}/${max_retries})"
-#             sleep "${sleep_time}"
-#         done
-
-#         echo "✅ ${service} is up and running on port ${port}"
-#     }
-
-#     # -------- Application services --------
-#     if [[ " ${ARTIFACTS[*]} " == *" application "* ]]; then
-#         check_port "api" 9000
-#         check_port "job" 9090
-#     fi
-
-#     # -------- Agent service --------
-#     if [[ " ${ARTIFACTS[*]} " == *" agent "* ]]; then
-#         check_port "agent" 9095
-#     fi
-# }
-
-
 validate() {
     local max_retries=20
     local sleep_time=30
@@ -710,6 +675,11 @@ validate() {
 # MAIN
 ################################
 main() {
+    if [[ "${flywayFixed,,}" == "true" ]]; then
+        echo "▶ Flyway-only mode enabled"
+        flyway_run
+        exit 0
+    fi
     create_dirs
     stop_services
     download_build
