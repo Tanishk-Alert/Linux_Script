@@ -198,9 +198,16 @@ extract_zip() {
         local artifact="$1"
         local zip_file="${BUILD_PATH}/${artifact}.zip"
 
-        if [ -f "$zip_file" ]; then
+        if [[ -f "$zip_file" ]]; then
             echo "✔ Extracting ${artifact}.zip"
-            unzip -qq "$zip_file" -d "$INIT_APPS_PATH"
+
+            # Case-insensitive check: does artifact name contain "DB"
+            if [[ "${artifact,,}" == *db* ]]; then
+                echo "   ➜ DB artifact detected, extracting into its own folder"
+                unzip -qq "$zip_file" -d "${INIT_APPS_PATH}/${artifact}"
+            else
+                unzip -qq "$zip_file" -d "${INIT_APPS_PATH}"
+            fi
         else
             echo "⚠️ ${artifact}.zip not found, skipping"
         fi
@@ -212,7 +219,7 @@ extract_zip() {
     if [[ " ${ARTIFACTS[*]} " == *" application "* ]]; then
         echo "➡️ Extracting APPLICATION artifacts"
 
-        for artifact in api job ui DB; do
+        for artifact in api job ui DB licensemanagerDB mobileDB; do
             extract_artifact "$artifact"
         done
     fi
@@ -608,7 +615,7 @@ flyway_run() {
     if [[ " ${ARTIFACTS[*]} " == *" application "* ]]; then
         run_flyway \
             "application" \
-            "filesystem:$INIT_APPS_PATH/db/migration/default/postgre,filesystem:$INIT_APPS_PATH/db/migration/default/postgreDML" \
+            "filesystem:$INIT_APPS_PATH/DB/db/migration/default/postgre,filesystem:$INIT_APPS_PATH/DB/db/migration/default/postgreDML" \
             "$LOGS_PATH/flyway/flyway_application.log" \
             "$dbSchemaApp"
     fi
@@ -617,7 +624,7 @@ flyway_run() {
     if [[ " ${ARTIFACTS[*]} " == *" agent "* ]]; then
         run_flyway \
             "agent" \
-            "filesystem:$INIT_APPS_PATH/agentdb/migration/default/postgre,filesystem:$INIT_APPS_PATH/agentdb/migration/default/postgreDML" \
+            "filesystem:$INIT_APPS_PATH/agentDB/db/migration/default/postgre,filesystem:$INIT_APPS_PATH/agentDB/db/migration/default/postgreDML" \
             "$LOGS_PATH/flyway/flyway_agent.log" \
             "$dbSchemaAgent"
     fi
