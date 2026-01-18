@@ -70,7 +70,8 @@ create_dirs() {
         "$SCRIPTS_PATH" \
         "$TEMP_PATH" \
         "$CERT_DIR"\
-        "$LOGS_PATH"
+        "$LOGS_PATH"\
+        "$BUILD_PATH"
     do
         mkdir -p "$dir"
     done
