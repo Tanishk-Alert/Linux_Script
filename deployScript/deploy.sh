@@ -294,7 +294,7 @@ copy_env_configs() {
         copy_configs \
             "agent" \
             "${INIT_APPS_PATH}/alert-agent-1.0/conf" \
-            "${CONFIG_PATH}/alert-agent-1.0" \
+            "${CONFIG_PATH}/agent" \
             "${INIT_APPS_PATH}/alert-agent-1.0"
     fi
 }
@@ -635,7 +635,7 @@ flyway_run() {
 }
 
 validate() {
-    local max_retries=20
+    local max_retries=10
     local sleep_time=30
 
     check_port() {
