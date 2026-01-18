@@ -155,7 +155,7 @@ download_build() {
         local src="${S3_SRC_PATH}/${gitBranch}/${buildVersion}/${artifact}.zip"
 
         echo "⬇️ Downloading ${artifact}.zip"
-        if aws s3 cp "$src" "$BUILD_PATH"; then
+        if aws s3 cp "$src" "$BUILD_PATH"/; then
             echo "✔ Downloaded ${artifact}.zip"
         else
             echo "⚠️ ${artifact}.zip not found, skipping"
