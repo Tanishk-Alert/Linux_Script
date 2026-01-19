@@ -65,26 +65,18 @@ pipeline {
             }
         }
 
-stage('Deploy on VM') {
-    steps {
-        withCredentials([
-            sshUserPrivateKey(
-                credentialsId: 'local_linux_vms',
-                keyFileVariable: 'SSH_KEY',
-                usernameVariable: 'SSH_USER'
-            ),
-            string(credentialsId: 'GIT_TOKEN', variable: 'GIT_TOKEN')
-        ]) {
-            withEnv([
-                "AWS_ACCESS_KEY_ID=${env.AWS_CREDS_USR}",
-                "AWS_SECRET_ACCESS_KEY=${env.AWS_CREDS_PSW}",
-                "S3_SRC_PATH=${env.S3_SRC_PATH}",
-                "gitBranch=${params.gitBranch}",
-                "buildVersion=${params.buildVersion}",
-                "flywayFixed=${params.flywayFixed}"
-            ]) {
-                sh '''
-ssh -i "$SSH_KEY" -o StrictHostKeyChecking=no "$SSH_USER@$IP" << 'EOF'
+     /* ================= DEPLOY ================= */
+        stage('Deploy on VM') {
+            steps {
+                withCredentials([
+                    sshUserPrivateKey(
+                        credentialsId: 'local_linux_vms',
+                        keyFileVariable: 'SSH_KEY',
+                        usernameVariable: 'SSH_USER'
+                    )
+                ]) {
+                    sh """
+ssh -i "${SSH_KEY}" -o StrictHostKeyChecking=no ${SSH_USER}@${IP} << 'EOF'
 sudo -E bash << 'INNER_EOF'
 set -e
 
@@ -94,40 +86,34 @@ export HISTSIZE=0
 export HISTFILESIZE=0
 set +o history
 
-# ---------------- EXPORT ENV ----------------
-export AWS_ACCESS_KEY_ID
-export AWS_SECRET_ACCESS_KEY
-export GIT_TOKEN
-export S3_SRC_PATH
-export gitBranch
-export buildVersion
-export flywayFixed
 
-# ---------------- CLEANUP ----------------
 cleanup() {
+    unset AWS_SHARED_CREDENTIALS_FILE
     unset AWS_ACCESS_KEY_ID
     unset AWS_SECRET_ACCESS_KEY
     unset GIT_TOKEN
 }
 trap cleanup EXIT
 
+export  AWS_ACCESS_KEY_ID=  "${AWS_ACCESS_KEY_ID}"
+export AWS_SECRET_ACCESS_KEY=  "${AWS_SECRET_ACCESS_KEY}"
+
 # ---------------- DEPLOY ----------------
 rm -rf /tmp/scripts
-git clone https://$GIT_TOKEN@github.com/Tanishk-Alert/Linux_Script.git /tmp/scripts
+git clone https://${GIT_TOKEN}@github.com/Tanishk-Alert/Linux_Script.git /tmp/scripts
 
 bash /tmp/scripts/deployScript/deploy.sh \
-    "$S3_SRC_PATH" \
-    "$gitBranch" \
-    "$buildVersion" \
-    "$flywayFixed"
+    "${S3_SRC_PATH}" \
+    "${gitBranch}" \
+    "${buildVersion}"
 
 INNER_EOF
 EOF
-'''
+"""
+                }
             }
         }
-    }
-}
+
 
     }
 

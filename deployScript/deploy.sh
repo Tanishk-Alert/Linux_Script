@@ -97,7 +97,7 @@ stop_services() {
     if [[ " ${ARTIFACTS[*]} " == *" agent "* ]]; then
         echo "➡️ Stopping AGENT service"
 
-        aeagent stop
+        aeagent stop 
     fi
 
     echo "✅ Service stop completed"
