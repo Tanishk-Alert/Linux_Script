@@ -135,8 +135,8 @@ bash /tmp/scripts/deployScript/deploy.sh \
     "${S3_SRC_PATH}" \
     "${gitBranch}" \
     "${buildVersion}" \
-    "${flywayFixed}" \ 
-    ""${artifacts}" 
+    "${flywayFixed}" \
+    "${artifacts}"
 INNER_EOF
 EOF
 """
