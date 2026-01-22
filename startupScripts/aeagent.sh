@@ -56,7 +56,7 @@ JOB_EXTRA_PARAMS=(
 )
 
 
-APP_TYPE="AGENT"   # When this script only for a API
+APP_TYPE="API"   # When this script only for a API
 #APP_TYPE="JOB"   # When this script only for a JOB
 
 VALIDATE=true

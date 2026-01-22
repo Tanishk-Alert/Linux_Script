@@ -13,6 +13,8 @@ export S3_SRC_PATH="$1"
 export gitBranch="$2"
 export buildVersion="$3"
 export flywayFixed="$4"
+export ARTIFACTS_ARG="$5"
+
 
 echo "DEBUG:"
 echo "S3_SRC_PATH=$S3_SRC_PATH"
@@ -23,15 +25,36 @@ echo "buildVersion=$buildVersion"
 ################################
 # BUILD ARTIFACTS LIST
 ################################
+# ARTIFACTS=()
+
+# if [ "$APPLICATION" = "true" ]; then
+#     ARTIFACTS+=("application")
+# fi
+
+# if [ "$AGENT" = "true" ]; then
+#     ARTIFACTS+=("agent")
+# fi
+
 ARTIFACTS=()
 
-if [ "$APPLICATION" = "true" ]; then
-    ARTIFACTS+=("application")
-fi
+IFS=',' read -ra SELECTED <<< "$ARTIFACTS_ARG"
 
-if [ "$AGENT" = "true" ]; then
-    ARTIFACTS+=("agent")
-fi
+for item in "${SELECTED[@]}"; do
+    case "${item,,}" in
+        application|agent)
+            ARTIFACTS+=("$item")
+            ;;
+        *)
+            echo "❌ Invalid artifact value: $item"
+            exit 1
+            ;;
+    esac
+done
+
+echo "DEBUG: ARTIFACTS=${ARTIFACTS[*]}"
+
+
+
 
 echo "DEBUG: APPLICATION=$APPLICATION"
 echo "DEBUG: AGENT=$AGENT"
