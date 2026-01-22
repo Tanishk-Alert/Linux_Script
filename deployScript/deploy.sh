@@ -244,7 +244,7 @@ extract_zip() {
     if [[ " ${ARTIFACTS[*]} " == *" application "* ]]; then
         echo "➡️ Extracting APPLICATION artifacts"
 
-        for artifact in api job ui DB licensemanagerDB mobileDB; do
+        for artifact in api job ui DB; do
             extract_artifact "$artifact"
         done
     fi
