@@ -640,7 +640,7 @@ flyway_run() {
     if [[ " ${ARTIFACTS[*]} " == *" application "* ]]; then
         run_flyway \
             "application" \
-            "filesystem:$INIT_APPS_PATH/DB/db/migration/default/postgre,filesystem:$INIT_APPS_PATH/DB/db/migration/default/postgreDML" \
+            "filesystem:${DB_PATH},filesystem:${DB_PATH}DML" \
             "$LOGS_PATH/flyway/flyway_application.log" \
             "$dbSchemaApp"
     fi
@@ -649,7 +649,7 @@ flyway_run() {
     if [[ " ${ARTIFACTS[*]} " == *" agent "* ]]; then
         run_flyway \
             "agent" \
-            "filesystem:$INIT_APPS_PATH/agentDB/db/migration/default/postgre,filesystem:$INIT_APPS_PATH/agentDB/db/migration/default/postgreDML" \
+            "filesystem:${DB_PATH},filesystem:${DB_PATH}DML" \
             "$LOGS_PATH/flyway/flyway_agent.log" \
             "$dbSchemaAgent"
     fi
