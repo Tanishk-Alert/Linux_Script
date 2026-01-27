@@ -147,7 +147,7 @@ backup() {
     if [ -d "$APP_PATH/bkp_1" ]; then
         ls -ld "$APP_PATH/bkp_1"
         mkdir -p "$APP_PATH/bkp_2"
-        mv "$APP_PATH/bkp_1" "$APP_PATH/bkp_2/"
+        mv "$APP_PATH/bkp_1/*" "$APP_PATH/bkp_2/"
         echo "🔁 Moved bkp_1 to bkp_2"
     fi
 
