@@ -631,7 +631,7 @@ flyway_run() {
             -schemas="$dbSchema" \
             -locations="$locations" \
             migrate \
-            2>&1 | tee -a "$logfile"
+            2>&1 | tee "$logfile"
 
         echo "✅ Flyway completed for ${service^^} DB"
     }
