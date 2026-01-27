@@ -551,59 +551,49 @@ scriptlinks() {
     echo "✅ Script links setup completed"
 }
 
+uiSetup() {
+    # Move AlertUI from production directory to base app path
+    if [ -d "${INIT_APPS_PATH}/production/AlertUI" ]; then
+        mv "${INIT_APPS_PATH}/production/AlertUI" "${INIT_APPS_PATH}/"
+        echo "✅ Moved AlertUI to ${INIT_APPS_PATH}"
+    else
+        echo "⚠️ AlertUI directory not found under production path"
+    fi
+
+    # Remove production directory after move
+    if [ -d "${INIT_APPS_PATH}/production" ]; then
+        rm -rf "${INIT_APPS_PATH}/production"
+        echo "🧹 Cleaned up production directory"
+    fi
+}
+
 
 ################################
 # APPLICATION / AGENT START
 ################################
 applicationStart() {
-    [ -z "$keystorePass" ] && echo "❌ Missing keystorePass!" && exit 1
+    [ -z "$keystorePass" ] && { echo "❌ Missing keystorePass!"; return 1; }
 
     export KEYSTORE_PASS="$keystorePass"
-    ulimit -n 65535
-
-    start_service() {
-        local service="$1"
-        local http_port="$2"
-        local conf_file="$3"
-        local app_dir="$4"
-
-        local LOG_FILE="${LOGS_PATH}/${service}.log"
-        local JVM_PARAMS="${myJVMParams:-"-XX:+UseContainerSupport -XX:MaxRAMPercentage=35.0 -XX:+UseG1GC"}"
-
-        echo "⬇️ Starting ${service^^}"
-        cd "$app_dir" || { echo "❌ Directory not found: $app_dir"; exit 1; }
-
-        mkdir -p "/mnt/${service}"
-
-        nohup java -cp "./lib/*" ${JVM_PARAMS} \
-            -Dhttp.port="${http_port}" \
-            -Dconfig.file="${conf_file}" \
-            -Dorg.owasp.esapi.resources=conf \
-            -Dlogback.debug=true \
-            -Dlog4j.configurationFile=conf/log4j2.xml \
-            play.core.server.ProdServerStart  \
-            > "${LOG_FILE}" 2>&1  &
-
-        echo "✅ ${service^^} started on port ${http_port}"
-    }
 
     ################################
     # APPLICATION (API + JOB)
     ################################
     if [[ " ${ARTIFACTS[*]} " == *" application "* ]]; then
-        start_service "api" 9000 "conf/application.conf" \
-            "${INIT_APPS_PATH}/alert-api-server-1.0"
 
-        start_service "job" 9090 "conf/jobserver.conf" \
-            "${INIT_APPS_PATH}/alert-job-server-1.0"
+        echo "API server started"
+        aeapps start api
+
+        echo "Job server started"
+        aeapps start job
     fi
 
     ################################
     # AGENT
     ################################
     if [[ " ${ARTIFACTS[*]} " == *" agent "* ]]; then
-        start_service "agent" 9095 "conf/application.conf" \
-            "${INIT_APPS_PATH}/alert-agent-1.0"
+        echo "Agent server started"
+        aeagent start
     fi
 
     echo "🎉 All requested services started successfully"
@@ -712,6 +702,7 @@ main() {
     update_environment_conf
     setup_keystore
     scriptlinks
+    uiSetup
     applicationStart
     validate
     flyway_run
