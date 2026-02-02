@@ -639,7 +639,7 @@ flyway_run() {
     if [[ " ${ARTIFACTS[*]} " == *" agent "* ]]; then
         run_flyway \
             "agent" \
-            "filesystem:${DB_PATH},filesystem:${DB_PATH}DML" \
+            "filesystem:${DB_PATH_AGENT},filesystem:${DB_PATH_AGENT}DML" \
             "$LOGS_PATH/flyway/flyway_agent.log" \
             "$dbSchemaAgent"
     fi
