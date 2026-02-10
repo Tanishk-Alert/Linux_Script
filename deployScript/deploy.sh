@@ -612,7 +612,17 @@ flyway_run() {
         local logfile="$3"
         local dbSchema="$4"
 
-        echo "➡️ Running Flyway for ${service^^} DB"
+        echo "➡️ Running Flyway repair for ${service^^} DB"
+
+        flyway \
+            -user="$flywayUser" \
+            -password="$flywayPass" \
+            -url="$dbURL" \
+            -schemas="$dbSchema" \
+            -locations="$locations" \
+            repair 
+
+        echo "➡️ Running Flyway migrate  for ${service^^} DB"
 
         flyway \
             -user="$flywayUser" \
