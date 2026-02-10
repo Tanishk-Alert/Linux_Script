@@ -695,7 +695,7 @@ main() {
     fi
     create_dirs
     stop_services
-    download_build
+    # download_build
     backup
     extract_zip
     copy_env_configs
