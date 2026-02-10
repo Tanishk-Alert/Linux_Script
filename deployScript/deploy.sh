@@ -53,11 +53,6 @@ done
 
 echo "DEBUG: ARTIFACTS=${ARTIFACTS[*]}"
 
-
-
-
-echo "DEBUG: APPLICATION=$APPLICATION"
-echo "DEBUG: AGENT=$AGENT"
 echo "DEBUG: ARTIFACTS=${ARTIFACTS[*]}"
 
 if [ "${#ARTIFACTS[@]}" -eq 0 ]; then
