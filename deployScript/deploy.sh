@@ -615,7 +615,7 @@ flyway_run() {
             -url="$dbURL" \
             -schemas="$dbSchema" \
             -locations="$locations" \
-            repair 
+            repair || echo "⚠ Repair failed — continuing to migrate"
 
         echo "➡️ Running Flyway migrate  for ${service^^} DB"
 
