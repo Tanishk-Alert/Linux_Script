@@ -556,6 +556,8 @@ check_port() {
 
 [[ " ${ARTIFACTS[*]} " == *" agent "* ]] && check_port agent 9095
 
+return 0
+
 }
 
 ################################
@@ -645,8 +647,8 @@ fi
 # step "Download build" download_build
 step "Backup" backup
 step "Extract" extract_zip
-# step "Copy configs" copy_env_configs
-# step "Update env" update_environment_conf
+step "Copy configs" copy_env_configs
+step "Update env" update_environment_conf
 step "Keystore" setup_keystore
 step "Script links" scriptlinks
 step "UI setup" uiSetup
