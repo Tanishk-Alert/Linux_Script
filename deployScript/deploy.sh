@@ -361,6 +361,8 @@ update_env() {
     "$INIT_APPS_PATH/alert-agent-1.0/conf/environment.conf"
 }
 
+return 0
+
 }
 
 ################################
