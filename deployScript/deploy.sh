@@ -591,8 +591,15 @@ flyway migrate \
 -locations="$locations" \
 2>&1 | tee "$logfile"
 
-grep -i "ERROR" "$logfile" >/dev/null
-[ $? -eq 0 ] && fail "Flyway migration failed for $service"
+RC_FLYWAY=${PIPESTATUS[0]}
+RC_TEE=${PIPESTATUS[1]}
+
+[ $RC_FLYWAY -ne 0 ] && fail "Flyway migration FAILED"
+[ $RC_TEE -ne 0 ] && fail "Flyway logging FAILED"
+
+grep -q "Successfully applied" "$logfile" \
+|| echo "⚠ Flyway success message not found (non-fatal)"
+
 
 }
 
