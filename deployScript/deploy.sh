@@ -643,7 +643,7 @@ fi
 # step "Create dirs" create_dirs
 # step "Stop services" stop_services
 # step "Download build" download_build
-# step "Backup" backup
+step "Backup" backup
 step "Extract" extract_zip
 # step "Copy configs" copy_env_configs
 # step "Update env" update_environment_conf
