@@ -644,7 +644,7 @@ fi
 # step "Stop services" stop_services
 # step "Download build" download_build
 # step "Backup" backup
-# step "Extract" extract_zip
+step "Extract" extract_zip
 # step "Copy configs" copy_env_configs
 # step "Update env" update_environment_conf
 step "Keystore" setup_keystore
