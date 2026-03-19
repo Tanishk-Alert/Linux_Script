@@ -626,34 +626,6 @@ run_flyway agent "filesystem:${DB_PATH_AGENT}" "$LOGS_PATH/flyway/flyway_agent.l
 ################################
 main() {
 
-precheck
-
-if [[ "${flywayFixed,,}" == "true" ]]; then
-    echo "Flyway only mode"
-    flyway_run
-    exit 0
-fi
-
-create_dirs
-stop_services
-download_build
-backup
-extract_zip
-copy_env_configs
-update_environment_conf
-setup_keystore
-scriptlinks
-uiSetup
-applicationStart
-validate
-flyway_run
-
-echo "✅ DEPLOYMENT COMPLETED SUCCESSFULLY"
-
-}
-
-main() {
-
 step "Precheck" precheck
 
 if [[ "${flywayFixed,,}" == "true" ]]; then
