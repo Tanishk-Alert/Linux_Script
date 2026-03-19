@@ -614,7 +614,6 @@ fi
 grep -q "Successfully" "$logfile" \
 || echo "⚠ Flyway success message not found (non-fatal)"
 
-return 0
 }
 
 [[ " ${ARTIFACTS[*]} " == *" application "* ]] && \
@@ -622,6 +621,12 @@ run_flyway application "filesystem:${DB_PATH}" "$LOGS_PATH/flyway/flyway_applica
 
 [[ " ${ARTIFACTS[*]} " == *" agent "* ]] && \
 run_flyway agent "filesystem:${DB_PATH_AGENT}" "$LOGS_PATH/flyway/flyway_agent.log" "$dbSchemaAgent"
+
+lastcommand=$?
+
+echo "checkagent flwya exit code : $lastcommand"
+
+return 0
 
 }
 
