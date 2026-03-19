@@ -624,7 +624,7 @@ run_flyway agent "filesystem:${DB_PATH_AGENT}" "$LOGS_PATH/flyway/flyway_agent.l
 
 lastcommand=$?
 
-echo "checkagent flwya exit code : $lastcommand"
+echo "checkagent flway exit code : $lastcommand"
 
 return 0
 
@@ -642,9 +642,9 @@ if [[ "${flywayFixed,,}" == "true" ]]; then
     step "Flyway" flyway_run
     exit 0
 fi
-# step "Create dirs" create_dirs
-# step "Stop services" stop_services
-# step "Download build" download_build
+step "Create dirs" create_dirs
+step "Stop services" stop_services
+step "Download build" download_build
 step "Backup" backup
 step "Extract" extract_zip
 step "Copy configs" copy_env_configs
