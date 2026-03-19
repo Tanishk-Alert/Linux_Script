@@ -594,10 +594,19 @@ flyway migrate \
 RC_FLYWAY=${PIPESTATUS[0]}
 RC_TEE=${PIPESTATUS[1]}
 
-[ $RC_FLYWAY -ne 0 ] && fail "Flyway migration FAILED"
-[ $RC_TEE -ne 0 ] && fail "Flyway logging FAILED"
+# Defensive defaulting
+RC_FLYWAY=${RC_FLYWAY:-1}
+RC_TEE=${RC_TEE:-1}
 
-grep -q "Successfully validated" "$logfile" \
+if [ "$RC_FLYWAY" -ne 0 ]; then
+    fail "Flyway migration FAILED"
+fi
+
+if [ "$RC_TEE" -ne 0 ]; then
+    fail "Flyway logging FAILED"
+fi
+
+grep -q "Successfully" "$logfile" \
 || echo "⚠ Flyway success message not found (non-fatal)"
 }
 
