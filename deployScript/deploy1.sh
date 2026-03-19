@@ -594,6 +594,8 @@ flyway migrate \
 2>&1 | tee "$logfile"
 
 RC_FLYWAY=$?
+
+echo "flyway exit code: $RC_FLYWAY"
 # RC_FLYWAY=${PIPESTATUS[0]}
 # RC_TEE=${PIPESTATUS[1]}
 
@@ -611,6 +613,8 @@ fi
 
 grep -q "Successfully" "$logfile" \
 || echo "⚠ Flyway success message not found (non-fatal)"
+
+return 0
 }
 
 [[ " ${ARTIFACTS[*]} " == *" application "* ]] && \
