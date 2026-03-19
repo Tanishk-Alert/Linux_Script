@@ -583,6 +583,8 @@ flyway repair \
 -schemas="$schema" \
 -locations="$locations"
 
+set -o pipefail
+
 flyway migrate \
 -user="$flywayUser" \
 -password="$flywayPass" \
@@ -591,7 +593,8 @@ flyway migrate \
 -locations="$locations" \
 2>&1 | tee "$logfile"
 
-RC_FLYWAY=${PIPESTATUS[0]}
+RC_FLYWAY=$?
+# RC_FLYWAY=${PIPESTATUS[0]}
 # RC_TEE=${PIPESTATUS[1]}
 
 # Defensive defaulting
