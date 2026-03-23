@@ -634,7 +634,7 @@ return 0
 # MAIN
 ################################
 main() {
-
+step "Create dirs" create_dirs
 step "Precheck" precheck
 
 if [[ "${flywayFixed,,}" == "true" ]]; then
@@ -642,7 +642,6 @@ if [[ "${flywayFixed,,}" == "true" ]]; then
     step "Flyway" flyway_run
     exit 0
 fi
-step "Create dirs" create_dirs
 step "Stop services" stop_services
 step "Download build" download_build
 step "Backup" backup
