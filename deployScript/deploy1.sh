@@ -399,80 +399,132 @@ return 0
 # KEYSTORE SETUP (STANDARDIZED)
 ################################
 setup_keystore() {
+    echo "🔐 Keystore setup started"
 
-echo "🔐 Keystore setup started"
+    [ -z "$keystorePass" ] && fail "keystorePass missing"
+    [ -z "$keystoreFile" ] && fail "keystoreFile missing"
 
-[ -z "$keystorePass" ] && fail "keystorePass missing"
-[ -z "$keystoreFile" ] && fail "keystoreFile missing"
+    ################################
+    # Select service paths
+    ################################
+    select_app_paths() {
+        local service="$1"
 
-if [[ " ${ARTIFACTS[*]} " == *" application "* ]]; then
-    APPS_PATH="${INIT_APPS_PATH}/alert-api-server-1.0"
-elif [[ " ${ARTIFACTS[*]} " == *" agent "* ]]; then
-    APPS_PATH="${INIT_APPS_PATH}/alert-agent-1.0"
-else
-    echo "No service for keystore"
-    return
-fi
+        case "$service" in
+            application)
+                APPS_PATH="${INIT_APPS_PATH}/alert-api-server-1.0"
+                ;;
+            agent)
+                APPS_PATH="${INIT_APPS_PATH}/alert-agent-1.0"
+                ;;
+            *)
+                fail "Unknown service: $service"
+                ;;
+        esac
 
-BRANCH12_CONF="${APPS_PATH}/conf/keystore.conf"
-BRANCH11_JAR="${APPS_PATH}/lib/keystore-0.0.1-SNAPSHOT.jar"
+        BRANCH12_CONF="${APPS_PATH}/conf/keystore.conf"
+        BRANCH11_JAR="${APPS_PATH}/lib/keystore-0.0.1-SNAPSHOT.jar"
+    }
 
-if [ -f "$BRANCH12_CONF" ]; then
-
-    echo "Branch12 keystore detected"
-
-    if [ ! -f "$keystoreFile" ]; then
-
-        keytool -genseckey -keyalg AES -keysize 256 \
-            -keystore "$keystoreFile" \
-            -storetype PKCS12 \
-            -storepass "$keystorePass" \
-            -keypass "$keystorePass"
-        [ $? -ne 0 ] && fail "Keystore creation failed"
-
+    ################################
+    # Insert secrets (generic)
+    ################################
+    insert_secrets_branch12() {
         printf "%s" "$keystorePass" > "$KEYSTORE_KEY_PATH"
+        [ $? -ne 0 ] && fail "Failed writing keystore password file"
 
         jq -c '.[]' <<< "$KEYSTORE_SECRETS" | while read -r item; do
             key=$(jq -r 'keys[0]' <<< "$item")
             val=$(jq -r '.[keys[0]]' <<< "$item")
 
-            cd "$APPS_PATH/lib" || fail "cd lib failed"
+            echo "➡️ Inserting key: $key (branch12)"
+            cd "$APPS_PATH/lib" || fail "cd failed"
 
-            java -cp "./*" \
-            -Dlog4j.configurationFile=../conf/log4j2.xml \
-            -Dcrypto.configurationFile=../conf/keystore.conf \
-            com.alnt.cryptoutil.Main key_upsert "$key" "$val"
-
-            [ $? -ne 0 ] && fail "Secret insert failed $key"
-
+            run java -cp "./*" \
+                -Dlog4j.configurationFile=../conf/log4j2.xml \
+                -Dcrypto.configurationFile=../conf/keystore.conf \
+                com.alnt.cryptoutil.Main key_upsert "$key" "$val"
         done
 
-        rm -f "$KEYSTORE_KEY_PATH"
+        run rm -f "$KEYSTORE_KEY_PATH"
+    }
 
-    fi
+    insert_secrets_branch11() {
+        jq -c '.[]' <<< "$KEYSTORE_SECRETS" | while read -r item; do
+            key=$(jq -r 'keys[0]' <<< "$item")
+            val=$(jq -r '.[keys[0]]' <<< "$item")
 
-elif [ -f "$BRANCH11_JAR" ]; then
+            echo "➡️ Inserting key: $key (branch11)"
+            cd "$APPS_PATH/lib" || fail "cd failed"
 
-    echo "Branch11 keystore detected"
+            run java -jar keystore-0.0.1-SNAPSHOT.jar \
+                "$keystoreFile" \
+                "$keystorePass" \
+                "$val" "$key"
+        done
+    }
 
-    if [ ! -f "$keystoreFile" ]; then
+    ################################
+    # Create keystore
+    ################################
+    create_keystore_branch12() {
+        run keytool -genseckey -keyalg AES -keysize 256 \
+            -keystore "$keystoreFile" \
+            -storetype PKCS12 \
+            -storepass "$keystorePass" \
+            -keypass "$keystorePass"
+    }
 
-        keytool -genkeypair \
+    create_keystore_branch11() {
+        run keytool -genkeypair \
             -dname "cn=Alert Enterprise, ou=Java, o=Oracle, c=US" \
             -alias alert \
             -keystore "$keystoreFile" \
             -storepass "$keystorePass" \
             -keypass "$keystorePass"
-        [ $? -ne 0 ] && fail "Keystore creation failed"
+    }
 
+    ################################
+    # Decide service
+    ################################
+    if [[ " ${ARTIFACTS[*]} " == *" application "* ]]; then
+        SERVICE="application"
+    elif [[ " ${ARTIFACTS[*]} " == *" agent "* ]]; then
+        SERVICE="agent"
+    else
+        echo "⚠️ No service selected for keystore setup"
+        return
     fi
 
-else
-    fail "No keystore mechanism found"
-fi
+    select_app_paths "$SERVICE"
 
-echo "✅ Keystore setup done"
+    ################################
+    # Branch detection + execution
+    ################################
+    if [ -f "$BRANCH12_CONF" ]; then
+        echo "🧭 Detected Branch 12 keystore"
 
+        if [ ! -f "$keystoreFile" ]; then
+            create_keystore_branch12
+            insert_secrets_branch12
+        else
+            echo "ℹ️ Keystore already exists, skipping creation"
+        fi
+
+    elif [ -f "$BRANCH11_JAR" ]; then
+        echo "🧭 Detected Branch 11 keystore"
+
+        if [ ! -f "$keystoreFile" ]; then
+            create_keystore_branch11
+            insert_secrets_branch11
+        else
+            echo "ℹ️ Keystore already exists, skipping creation"
+        fi
+    else
+        fail "No keystore mechanism found"
+    fi
+
+    echo "✅ Keystore setup completed"
 }
 
 
