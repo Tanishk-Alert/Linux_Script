@@ -187,86 +187,48 @@ stop_services() {
 # DOWNLOAD BUILDS
 ################################
 download_build() {
+    echo "📥 Downloading build artifacts..."
 
-    echo "=================================================="
-    echo "📥 Starting build artifact download process"
-    echo "=================================================="
-
-    echo "📁 Ensuring BUILD_PATH exists: $BUILD_PATH"
-    mkdir -p "$BUILD_PATH" || fail "BUILD_PATH creation failed"
-    echo "✅ BUILD_PATH ready"
+    mkdir -p builds
+    [ $? -ne 0 ] && fail "BUILD directory creation failed"
 
     download_artifact() {
-
         local artifact="$1"
         local src="${S3_SRC_PATH}/${gitBranch}/${buildVersion}/${artifact}.zip"
 
-        local WIN_BUILD_PATH
-        WIN_BUILD_PATH=$(cygpath -w "$BUILD_PATH") || fail "cygpath conversion failed"
+        echo "⬇️ Downloading ${artifact}.zip"
 
-        echo "--------------------------------------------------"
-        echo "⬇️ Preparing to download: ${artifact}.zip"
-        echo "🔗 Source : $src"
-        echo "📂 Target : $WIN_BUILD_PATH"
-        echo "--------------------------------------------------"
-
-        aws s3 cp "$src" "$WIN_BUILD_PATH\\"
+        aws s3 cp "$src" "$BUILD_PATH"/
         rc=$?
 
-        # ⭐ If object missing → skip (same behaviour)
-        if [ $rc -ne 0 ]; then
+        [ $rc -ne 0 ] && fail "Download failed for ${artifact}"
 
-            # detect real AWS error vs object missing
-            aws s3 ls "$src" >/dev/null 2>&1
-            ls_rc=$?
-
-            if [ $ls_rc -ne 0 ]; then
-                echo "⚠️ ${artifact}.zip not found in S3 → Skipping"
-                return
-            else
-                fail "AWS download failed for ${artifact}"
-            fi
-
-        fi
-
-        echo "✅ Successfully downloaded ${artifact}.zip"
+        echo "✔ Downloaded ${artifact}.zip"
     }
 
     ################################
-    # APPLICATION ARTIFACTS
+    # APPLICATION artifacts
     ################################
     if [[ " ${ARTIFACTS[*]} " == *" application "* ]]; then
-        echo "➡️ Application artifact selected"
-        echo "🔄 Downloading APPLICATION artifacts (api, job, ui, DB)"
+        echo "➡️ Downloading APPLICATION artifacts"
 
         for artifact in api job ui DB; do
             download_artifact "$artifact"
         done
-
-        echo "✔ APPLICATION artifacts download stage completed"
-    else
-        echo "ℹ️ Application artifact not selected → Skipping APPLICATION downloads"
     fi
 
     ################################
-    # AGENT ARTIFACTS
+    # AGENT artifacts
     ################################
     if [[ " ${ARTIFACTS[*]} " == *" agent "* ]]; then
-        echo "➡️ Agent artifact selected"
-        echo "🔄 Downloading AGENT artifacts (agentserver, agentDB)"
+        echo "➡️ Downloading AGENT artifacts"
 
         for artifact in agentserver agentDB; do
             download_artifact "$artifact"
         done
-
-        echo "✔ AGENT artifacts download stage completed"
-    else
-        echo "ℹ️ Agent artifact not selected → Skipping AGENT downloads"
     fi
 
-    echo "=================================================="
-    echo "🎉 Build artifact download process completed"
-    echo "=================================================="
+    echo "✅ Build download completed"
 }
 
 ################################
