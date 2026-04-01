@@ -81,19 +81,7 @@ command -v ss >/dev/null 2>&1 || fail "ss command missing"
 [ -d "$BUILD_PATH" ] || fail "BUILD_PATH missing: $BUILD_PATH"
 [ -d "$LOGS_PATH" ] || fail "LOGS_PATH missing: $LOGS_PATH"
 
-################################
-# DB MIGRATION PATHS (VERY IMPORTANT)
-################################
 
-if [[ " ${ARTIFACTS[*]} " == *" application "* ]]; then
-    [ -d "$DB_PATH" ] || fail "Application DB_PATH missing: $DB_PATH"
-    [ -d "${DB_PATH}DML" ] || fail "Application DB DML path missing: ${DB_PATH}DML"
-fi
-
-if [[ " ${ARTIFACTS[*]} " == *" agent "* ]]; then
-    [ -d "$DB_PATH_AGENT" ] || fail "Agent DB_PATH missing: $DB_PATH_AGENT"
-    [ -d "${DB_PATH_AGENT}DML" ] || fail "Agent DB DML path missing: ${DB_PATH_AGENT}DML"
-fi
 
 ################################
 # DISK SPACE CHECK
@@ -178,27 +166,85 @@ fi
 ################################
 download_build() {
 
-download_artifact() {
-    artifact="$1"
-    src="${S3_SRC_PATH}/${gitBranch}/${buildVersion}/${artifact}.zip"
+    echo "=================================================="
+    echo "📥 Starting build artifact download process"
+    echo "=================================================="
 
-    echo "Downloading $artifact"
-    aws s3 cp "$src" "$BUILD_PATH/"
-    [ $? -ne 0 ] && fail "Download failed for $artifact"
-}
+    echo "📁 Ensuring BUILD_PATH exists: $BUILD_PATH"
+    mkdir -p "$BUILD_PATH" || fail "BUILD_PATH creation failed"
+    echo "✅ BUILD_PATH ready"
 
-if [[ " ${ARTIFACTS[*]} " == *" application "* ]]; then
-    for a in api job ui DB; do
-        download_artifact "$a"
-    done
-fi
+    download_artifact() {
 
-if [[ " ${ARTIFACTS[*]} " == *" agent "* ]]; then
-    for a in agentserver agentDB; do
-        download_artifact "$a"
-    done
-fi
+        local artifact="$1"
+        local src="${S3_SRC_PATH}/${gitBranch}/${buildVersion}/${artifact}.zip"
 
+        local WIN_BUILD_PATH
+        WIN_BUILD_PATH=$(cygpath -w "$BUILD_PATH") || fail "cygpath conversion failed"
+
+        echo "--------------------------------------------------"
+        echo "⬇️ Preparing to download: ${artifact}.zip"
+        echo "🔗 Source : $src"
+        echo "📂 Target : $WIN_BUILD_PATH"
+        echo "--------------------------------------------------"
+
+        aws s3 cp "$src" "$WIN_BUILD_PATH\\"
+        rc=$?
+
+        # ⭐ If object missing → skip (same behaviour)
+        if [ $rc -ne 0 ]; then
+
+            # detect real AWS error vs object missing
+            aws s3 ls "$src" >/dev/null 2>&1
+            ls_rc=$?
+
+            if [ $ls_rc -ne 0 ]; then
+                echo "⚠️ ${artifact}.zip not found in S3 → Skipping"
+                return
+            else
+                fail "AWS download failed for ${artifact}"
+            fi
+
+        fi
+
+        echo "✅ Successfully downloaded ${artifact}.zip"
+    }
+
+    ################################
+    # APPLICATION ARTIFACTS
+    ################################
+    if [[ " ${ARTIFACTS[*]} " == *" application "* ]]; then
+        echo "➡️ Application artifact selected"
+        echo "🔄 Downloading APPLICATION artifacts (api, job, ui, DB)"
+
+        for artifact in api job ui DB; do
+            download_artifact "$artifact"
+        done
+
+        echo "✔ APPLICATION artifacts download stage completed"
+    else
+        echo "ℹ️ Application artifact not selected → Skipping APPLICATION downloads"
+    fi
+
+    ################################
+    # AGENT ARTIFACTS
+    ################################
+    if [[ " ${ARTIFACTS[*]} " == *" agent "* ]]; then
+        echo "➡️ Agent artifact selected"
+        echo "🔄 Downloading AGENT artifacts (agentserver, agentDB)"
+
+        for artifact in agentserver agentDB; do
+            download_artifact "$artifact"
+        done
+
+        echo "✔ AGENT artifacts download stage completed"
+    else
+        echo "ℹ️ Agent artifact not selected → Skipping AGENT downloads"
+    fi
+
+    echo "=================================================="
+    echo "🎉 Build artifact download process completed"
+    echo "=================================================="
 }
 
 ################################
@@ -568,6 +614,20 @@ return 0
 flyway_run() {
 
 mkdir -p "$LOGS_PATH/flyway"
+
+################################
+# DB MIGRATION PATHS (VERY IMPORTANT)
+################################
+
+if [[ " ${ARTIFACTS[*]} " == *" application "* ]]; then
+    [ -d "$DB_PATH" ] || fail "Application DB_PATH missing: $DB_PATH"
+    [ -d "${DB_PATH}DML" ] || fail "Application DB DML path missing: ${DB_PATH}DML"
+fi
+
+if [[ " ${ARTIFACTS[*]} " == *" agent "* ]]; then
+    [ -d "$DB_PATH_AGENT" ] || fail "Agent DB_PATH missing: $DB_PATH_AGENT"
+    [ -d "${DB_PATH_AGENT}DML" ] || fail "Agent DB DML path missing: ${DB_PATH_AGENT}DML"
+fi
 
 run_flyway() {
 
