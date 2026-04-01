@@ -146,19 +146,41 @@ create_dirs() {
 ################################
 stop_services() {
 
-if [[ " ${ARTIFACTS[*]} " == *" application "* ]]; then
-    aeapps stop api
-    [ $? -ne 0 ] && fail "Failed stopping API"
+    ################################
+    # APPLICATION SERVICES
+    ################################
+    if [[ " ${ARTIFACTS[*]} " == *" application "* ]]; then
 
-    aeapps stop job
-    [ $? -ne 0 ] && fail "Failed stopping JOB"
-fi
+        if [ ! -d "$INIT_APPS_PATH/alert-api-server-1.0" ]; then
+            echo "ℹ️ API path not found → skipping"
+        else
+            echo "🛑 Stopping API service"
+            aeapps stop api
+            [ $? -ne 0 ] && fail "Failed stopping API"
+        fi
 
-if [[ " ${ARTIFACTS[*]} " == *" agent "* ]]; then
-    aeagent stop
-    [ $? -ne 0 ] && fail "Failed stopping AGENT"
-fi
+        if [ ! -d "$INIT_APPS_PATH/alert-job-server-1.0" ]; then
+            echo "ℹ️ JOB path not found → skipping"
+        else
+            echo "🛑 Stopping JOB service"
+            aeapps stop job
+            [ $? -ne 0 ] && fail "Failed stopping JOB"
+        fi
+    fi
 
+    ################################
+    # AGENT SERVICE
+    ################################
+    if [[ " ${ARTIFACTS[*]} " == *" agent "* ]]; then
+
+        if [ ! -d "$INIT_APPS_PATH/agent-server-1.0" ]; then
+            echo "ℹ️ AGENT path not found → skipping"
+        else
+            echo "🛑 Stopping AGENT service"
+            aeagent stop
+            [ $? -ne 0 ] && fail "Failed stopping AGENT"
+        fi
+    fi
 }
 
 ################################
