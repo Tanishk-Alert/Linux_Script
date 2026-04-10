@@ -404,6 +404,9 @@ setup_keystore() {
     [ -z "$keystorePass" ] && fail "keystorePass missing"
     [ -z "$keystoreFile" ] && fail "keystoreFile missing"
 
+    echo "$KEYSTORE_SECRETS" | jq . >/dev/null 2>&1 \
+    || fail "Invalid JSON in KEYSTORE_SECRETS"
+
     ################################
     # Select service paths
     ################################
