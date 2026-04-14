@@ -742,7 +742,7 @@ if [[ "${flywayFixed,,}" == "true" ]]; then
     exit 0
 fi
 step "Stop services" stop_services
-# step "Download build" download_build
+step "Download build" download_build
 step "Backup" backup
 step "Extract" extract_zip
 step "Copy configs" copy_env_configs
