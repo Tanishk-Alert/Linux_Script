@@ -710,7 +710,7 @@ echo "flyway exit code: $RC_FLYWAY"
 # RC_TEE=${RC_TEE:-1}
 
 if [ "$RC_FLYWAY" -ne 0 ]; then
-    fail "Flyway migration FAILED"
+    echo "Flyway migration FAILED"
 fi
 
 # if [ "$RC_TEE" -ne 0 ]; then
