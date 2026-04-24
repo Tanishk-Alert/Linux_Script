@@ -607,7 +607,7 @@ ln -sf "$DEST" "$LINK"
 
 }
 
-for list aeflywayRun.sh aeEncrypter.sh;
+for list  aeEncrypter.sh;
 [[ " ${ARTIFACTS[*]} " == *" application "* ]] && \
 setup_script "alert-api-server-1.0" "$file.sh" "$file"
 else if
