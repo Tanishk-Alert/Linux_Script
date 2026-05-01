@@ -30,11 +30,11 @@ step() {
 ################################
 # LOAD ENV
 ################################
-ENV_FILE="/opt/AlertEnterprise/configs/.env"
+ENV_FILE_STATIC="/opt/AlertEnterprise/configs/.env_static"
 
-[ ! -f "$ENV_FILE" ] && fail "ENV file missing: $ENV_FILE"
+[ ! -f "$ENV_FILE_STATIC" ] && fail "ENV file missing: $ENV_FILE_STATIC"
 
-source "$ENV_FILE" || fail "Failed to source ENV"
+source "$ENV_FILE_STATIC" || fail "Failed to source ENV"
 
 ################################
 # INPUT PARAMS
@@ -400,6 +400,12 @@ return 0
 # KEYSTORE SETUP (STANDARDIZED)
 ################################
 setup_keystore() {
+    ENV_FILE_VAR="/opt/AlertEnterprise/configs/.env_variable"
+
+    [ ! -f "$ENV_FILE_VAR" ] && fail "ENV file missing: $ENV_FILE_VAR"
+
+    source "$ENV_FILE_VAR" || fail "Failed to source ENV"
+
     echo "🔐 Keystore setup started"
 
     [ -z "$keystorePass" ] && fail "keystorePass missing"
@@ -798,10 +804,10 @@ step "Backup" backup
 step "Extract" extract_zip
 step "Copy configs" copy_env_configs
 step "Update env" update_environment_conf
-step "Keystore" setup_keystore
 step "Script links" scriptlinks
 step "Other Script links" otherScriptlinks
 step "UI setup" uiSetup
+step "Keystore" setup_keystore
 step "Start services" applicationStart
 step "Validate" validate
 step "Flyway" flyway_run
