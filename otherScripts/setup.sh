@@ -3,7 +3,9 @@
 set -euo pipefail
 
 basePath="/opt/AlertEnterprise"
-ENV_FILE="${basePath}/keystore/.env"
+ENV_FILE="${basePath}/configs/.env_variable"
+randomKeysHighLevel=true
+unattended=true
 
 RED='\033[0;31m'
 YELLOW='\033[1;33m'
@@ -22,10 +24,28 @@ prompt_nd_input() {
     echo "$input_var"
 }
 
-# Backup existing .env
+generate_passphrase() {
+    if [[ "${randomKeysHighLevel}" == true ]]; then
+        LC_ALL=C tr -dc 'A-Za-z0-9@#$%^&*()_+=-' < /dev/urandom | head -c 64
+    else
+        openssl rand -base64 48
+    fi
+}   
+
+keystore_pass() {
+    if [[ "${randomKeysHighLevel}" == true ]]; then
+        LC_ALL=C tr -dc 'A-Za-z0-9@#$%^&*()_+=-' < /dev/urandom | head -c 16
+    else
+        openssl rand -base64 16
+    fi
+}
+
+
+
+# Backup existing .env_variable
 if [ -f "$ENV_FILE" ]; then
-    echo -e "${YELLOW}.env file already exists.${NC}"
-    read -r -p "Do you want recreate and backup current .env? (y/n): " ans
+    echo -e "${YELLOW}.env_variable file already exists.${NC}"
+    read -r -p "Do you want recreate and backup current .env_variable? (y/n): " ans
     if [[ "$ans" =~ ^[Yy]$ ]]; then
         cp -p "$ENV_FILE" "${ENV_FILE}_$(date +%Y%m%d_%H%M%S)"
         rm -f "$ENV_FILE"
@@ -35,16 +55,83 @@ if [ -f "$ENV_FILE" ]; then
     fi
 fi
 
-echo "Creating .env file..."
+echo "Creating .env_variable file..."
 
-# Password prompts
-if [ -z "${keystorePass:-}" ]; then
-    read -r -p "Please enter keystore password: " keystorePass
-fi
 
-if [ -z "${passphrase:-}" ]; then
-    read -r -p "Please enter passphrase: " passphrase
-fi
+    if [ "$unattended" = "true" ]; then
+        keystorePass="$(keystore_pass)"
+        aes_encryption_passphrase="$(generate_passphrase)"
+        PLAY_HTTP_SECRET_KEY="$(generate_passphrase)"
+        PLAY_HTTP_GUARDIAN_SECRET_KEY="$(generate_passphrase)"
+        PLAY_HTTP_GUARDIAN_REFRESH_SECRET_KEY="$(generate_passphrase)"
+        PLAY_HTTP_TFA_KEY="$(generate_passphrase)"
+        PLAY_HTTP_CSQ_KEY="$(generate_passphrase)"
+        PLAY_HTTP_RNK_KEY="$(generate_passphrase)"
+        HOTP_SECRET_KEY="$(generate_passphrase)"
+
+    else
+        # ======================================================
+        #             Interactive secret generation
+        # ======================================================
+        while true; do
+            keystorePass="$(prompt_input "Enter Keystore Password" "$(keystore_pass)")"
+            aes_encryption_passphrase="$(prompt_input "AES encryption passphrase" "$(generate_passphrase)")"
+            PLAY_HTTP_SECRET_KEY="$(prompt_input "PLAY_HTTP_SECRET_KEY" "$(generate_passphrase)")"
+            PLAY_HTTP_GUARDIAN_SECRET_KEY="$(prompt_input "PLAY_HTTP_GUARDIAN_SECRET_KEY" "$(generate_passphrase)")"
+            PLAY_HTTP_GUARDIAN_REFRESH_SECRET_KEY="$(prompt_input "PLAY_HTTP_GUARDIAN_REFRESH_SECRET_KEY" "$(generate_passphrase)")"
+            PLAY_HTTP_TFA_KEY="$(prompt_input "PLAY_HTTP_TFA_KEY" "$(generate_passphrase)")"
+            PLAY_HTTP_CSQ_KEY="$(prompt_input "PLAY_HTTP_CSQ_KEY" "$(generate_passphrase)")"
+            PLAY_HTTP_RNK_KEY="$(prompt_input "PLAY_HTTP_RNK_KEY" "$(generate_passphrase)")"
+            HOTP_SECRET_KEY="$(prompt_input "HOTP_SECRET_KEY" "$(generate_passphrase)")"
+
+            log info "Generated Secrets Summary:"
+            printf "%s\n" \
+                "keystorePass=$keystorePass" \
+                "aes.encryption.passphrase=$aes_encryption_passphrase" \
+                "PLAY_HTTP_SECRET_KEY=$PLAY_HTTP_SECRET_KEY" \
+                "PLAY_HTTP_GUARDIAN_SECRET_KEY=$PLAY_HTTP_GUARDIAN_SECRET_KEY" \
+                "PLAY_HTTP_GUARDIAN_REFRESH_SECRET_KEY=$PLAY_HTTP_GUARDIAN_REFRESH_SECRET_KEY" \
+                "PLAY_HTTP_TFA_KEY=$PLAY_HTTP_TFA_KEY" \
+                "PLAY_HTTP_CSQ_KEY=$PLAY_HTTP_CSQ_KEY" \
+                "PLAY_HTTP_RNK_KEY=$PLAY_HTTP_RNK_KEY" \
+                "HOTP_SECRET_KEY=$HOTP_SECRET_KEY"
+
+            printf "Proceed? (y/n): "
+            IFS= read -r yn
+
+            case "$yn" in
+                y|Y|yes|YES) break ;;
+                *) log warn "Re-entering secrets..." ;;
+            esac
+        done
+    fi
+    # ======================================================
+    #            Build keystore_entries (multi-line)
+    # ======================================================
+   keystore_entries=$(cat <<EOF
+KEYSTORE_SECRETS='[
+  {"PLAY_HTTP_SECRET_KEY":"$aes_encryption_passphrase"},
+  {"PLAY_HTTP_GUARDIAN_SECRET_KEY":"$aes_encryption_passphrase"},
+  {"PLAY_HTTP_GUARDIAN_REFRESH_SECRET_KEY":"$aes_encryption_passphrase"},
+  {"PLAY_HTTP_TFA_KEY":"$aes_encryption_passphrase"},
+  {"PLAY_HTTP_CSQ_KEY":"$aes_encryption_passphrase"},
+  {"PLAY_HTTP_RNK_KEY":"$aes_encryption_passphrase"},
+  {"HOTP_SECRET_KEY":"$aes_encryption_passphrase"},
+  {"PLAY_HTTP_NFC_KEY":"$aes_encryption_passphrase"},
+  {"aes.encryption.passphrase":"$aes_encryption_passphrase"}
+]'
+EOF
+)
+
+
+# # Password prompts
+# if [ -z "${keystorePass:-}" ]; then
+#     read -r -p "Please enter keystore password: " keystorePass
+# fi
+
+# if [ -z "${passphrase:-}" ]; then
+#     read -r -p "Please enter passphrase: " passphrase
+# fi
 
 KEYSTORE_PASS="$keystorePass"
 
@@ -77,8 +164,16 @@ DB_USER=$(prompt_input "DB Username" "alert")
 
 read -r -p "Encrypted DB password available? (y/n): " x
 if [[ "$x" =~ ^[Yy]$ ]]; then
-    DB_Encrypted=$(prompt_nd_input "Enter encrypted DB password")
-    DB_PASSWORD=""
+    DB_PASSWORD=$(prompt_nd_input "Enter Plaintext DB Password" "")
+    DB_Encrypted=""
+
+    if [ -z "$DB_PASSWORD" ]; then
+        log warn "Blank DB password received"
+    else
+        log info "Encrypting DB password..."
+        DB_Encrypted=$(aeEncrypter "$DB_PASSWORD" | awk -F': ' '/aeEncrypted Value:/ {print $2}')
+        log debug "Encrypted Value ${DB_Encrypted}"
+        log ok "DB password encrypted"
 else
     DB_PASSWORD=$(prompt_nd_input "Enter DB password")
     DB_Encrypted="$DB_PASSWORD"
@@ -181,12 +276,14 @@ SECRETS='[
   {"flywayPass":"$FLYWAY_PASS"}
 ]'
 
-KEYSTORE_SECRETS='[
-  {"aes.encryption.passphrase":"$passphrase"}
-]'
 EOF
 
-echo ".env created successfully at $ENV_FILE"
+{
+    echo ""
+    echo "$keystore_entries"
+} >> "$ENV_FILE"
+
+echo ".env_variable created successfully at $ENV_FILE"
 break
 
 done

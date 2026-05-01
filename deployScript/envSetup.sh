@@ -249,8 +249,11 @@ copy_configs() {
     cp "${config_src}/override_env.conf" "${app_conf_dir}/"
     [ $? -ne 0 ] && fail "override_env.conf copy failed for $service"
 
-    cp "${config_src}/log4j2.xml" "${app_conf_dir}/"
-    [ $? -ne 0 ] && fail "log4j2.xml copy failed for $service"
+    if [ -f "${config_src}/log4j2.xml" ]; then
+        cp "${config_src}/log4j2.xml" "${app_conf_dir}/" || fail "log4j2.xml copy failed for $service"
+    else
+        echo "log4j2.xml not found for $service — skipping"
+    fi
 
     if [ -f "${apps_path}/conf/keystore.conf" ]; then
 
