@@ -726,7 +726,7 @@ grep -q "Successfully" "$logfile" \
 run_flyway application "filesystem:${DB_PATH},filesystem:${DB_PATH}DML" "$LOGS_PATH/flyway/flyway_application.log" "$dbSchemaApp"
 
 [[ " ${ARTIFACTS[*]} " == *" agent "* ]] && \
-run_flyway agent "filesystem:${DB_PATH_AGENT}",filesystem:${DB_PATH}DML" "$LOGS_PATH/flyway/flyway_agent.log" "$dbSchemaAgent"
+run_flyway agent "filesystem:${DB_PATH_AGENT},filesystem:${DB_PATH_AGENT}DML" "$LOGS_PATH/flyway/flyway_agent.log" "$dbSchemaAgent"
 
 lastcommand=$?
 
